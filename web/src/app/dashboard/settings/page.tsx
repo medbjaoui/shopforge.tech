@@ -912,16 +912,11 @@ export default function SettingsPage() {
             <SaveButton saving={saving} saved={saved} />
           </form>
 
-          {/* Read-only sections */}
+          {/* Profil éditable + changement mdp */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <section className="bg-white rounded-xl shadow-sm p-6">
-              <h2 className="font-semibold text-gray-900 mb-4">Compte</h2>
-              <div className="space-y-3">
-                <InfoRow label="Email" value={user?.email ?? ''} />
-                <InfoRow label="Prénom" value={user?.firstName ?? '—'} />
-                <InfoRow label="Nom" value={user?.lastName ?? '—'} />
-                <InfoRow label="Rôle" value={user?.role ?? ''} />
-              </div>
+              <h2 className="font-semibold text-gray-900 mb-4">Profil</h2>
+              <ProfileEditor user={user} />
             </section>
 
             {usage && (
@@ -1141,6 +1136,114 @@ function InfoRow({ label, value }: { label: string; value: string }) {
     <div className="flex items-center gap-4">
       <span className="w-20 text-xs text-gray-400 uppercase tracking-wider">{label}</span>
       <span className="text-sm text-gray-900 font-medium">{value}</span>
+    </div>
+  );
+}
+
+function ProfileEditor({ user }: { user: any }) {
+  const { setAuth, store } = useAuth();
+  const [firstName, setFirstName] = useState(user?.firstName ?? '');
+  const [lastName, setLastName] = useState(user?.lastName ?? '');
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState('');
+  const [err, setErr] = useState('');
+
+  // Password change
+  const [oldPw, setOldPw] = useState('');
+  const [newPw, setNewPw] = useState('');
+  const [confirmPw, setConfirmPw] = useState('');
+  const [pwSaving, setPwSaving] = useState(false);
+  const [pwMsg, setPwMsg] = useState('');
+  const [pwErr, setPwErr] = useState('');
+
+  const handleProfileSave = async () => {
+    setSaving(true); setMsg(''); setErr('');
+    try {
+      const { data } = await api.patch('/auth/profile', { firstName, lastName });
+      setMsg('Profil mis à jour');
+      // Mettre à jour le contexte auth
+      const storedUser = localStorage.getItem('user');
+      if (storedUser) {
+        const u = JSON.parse(storedUser);
+        u.firstName = data.firstName;
+        u.lastName = data.lastName;
+        localStorage.setItem('user', JSON.stringify(u));
+      }
+      setTimeout(() => setMsg(''), 3000);
+    } catch (e: any) {
+      setErr(e.response?.data?.message || 'Erreur');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handlePasswordChange = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPwMsg(''); setPwErr('');
+    if (newPw !== confirmPw) { setPwErr('Les mots de passe ne correspondent pas'); return; }
+    if (newPw.length < 8) { setPwErr('Minimum 8 caractères'); return; }
+    setPwSaving(true);
+    try {
+      await api.post('/auth/change-password', { oldPassword: oldPw, newPassword: newPw });
+      setPwMsg('Mot de passe modifié');
+      setOldPw(''); setNewPw(''); setConfirmPw('');
+      setTimeout(() => setPwMsg(''), 3000);
+    } catch (e: any) {
+      setPwErr(e.response?.data?.message || 'Erreur');
+    } finally {
+      setPwSaving(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Profil */}
+      <div className="space-y-3">
+        <InfoRow label="Email" value={user?.email ?? ''} />
+        <InfoRow label="Rôle" value={user?.role ?? ''} />
+        <div>
+          <label className="block text-xs text-gray-400 uppercase tracking-wider mb-1">Prénom</label>
+          <input value={firstName} onChange={(e) => setFirstName(e.target.value)}
+            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        </div>
+        <div>
+          <label className="block text-xs text-gray-400 uppercase tracking-wider mb-1">Nom</label>
+          <input value={lastName} onChange={(e) => setLastName(e.target.value)}
+            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        </div>
+        <div className="flex items-center gap-3">
+          <button onClick={handleProfileSave} disabled={saving}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50">
+            {saving ? 'Sauvegarde...' : 'Mettre à jour'}
+          </button>
+          {msg && <span className="text-sm text-green-600">{msg}</span>}
+          {err && <span className="text-sm text-red-600">{err}</span>}
+        </div>
+      </div>
+
+      {/* Changement mot de passe */}
+      <div className="border-t border-gray-100 pt-5">
+        <h3 className="font-medium text-gray-900 text-sm mb-3">Changer le mot de passe</h3>
+        <form onSubmit={handlePasswordChange} className="space-y-3">
+          <input type="password" placeholder="Mot de passe actuel" value={oldPw}
+            onChange={(e) => setOldPw(e.target.value)} required
+            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          <input type="password" placeholder="Nouveau mot de passe" value={newPw}
+            onChange={(e) => setNewPw(e.target.value)} required
+            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          <input type="password" placeholder="Confirmer le nouveau mot de passe" value={confirmPw}
+            onChange={(e) => setConfirmPw(e.target.value)} required
+            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          <div className="flex items-center gap-3">
+            <button type="submit" disabled={pwSaving}
+              className="bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-700 disabled:opacity-50">
+              {pwSaving ? 'Modification...' : 'Changer le mot de passe'}
+            </button>
+            {pwMsg && <span className="text-sm text-green-600">{pwMsg}</span>}
+            {pwErr && <span className="text-sm text-red-600">{pwErr}</span>}
+          </div>
+        </form>
+      </div>
     </div>
   );
 }

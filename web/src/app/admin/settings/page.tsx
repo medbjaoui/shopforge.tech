@@ -144,6 +144,30 @@ export default function AdminSettingsPage() {
   // When searching, force all groups open
   const isSearching = search.length > 0;
 
+  // Admin password change
+  const [pwOld, setPwOld] = useState('');
+  const [pwNew, setPwNew] = useState('');
+  const [pwConfirm, setPwConfirm] = useState('');
+  const [pwSaving, setPwSaving] = useState(false);
+  const [pwMsg, setPwMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
+
+  async function handleAdminPwChange(e: React.FormEvent) {
+    e.preventDefault();
+    setPwMsg(null);
+    if (pwNew !== pwConfirm) { setPwMsg({ type: 'err', text: 'Les mots de passe ne correspondent pas' }); return; }
+    if (pwNew.length < 8) { setPwMsg({ type: 'err', text: 'Minimum 8 caracteres' }); return; }
+    setPwSaving(true);
+    try {
+      await adminApi.post('/auth/change-password', { oldPassword: pwOld, newPassword: pwNew });
+      setPwMsg({ type: 'ok', text: 'Mot de passe admin modifie' });
+      setPwOld(''); setPwNew(''); setPwConfirm('');
+    } catch (err: any) {
+      setPwMsg({ type: 'err', text: err.response?.data?.message || 'Erreur' });
+    } finally {
+      setPwSaving(false);
+    }
+  }
+
   if (loading) return <Spinner />;
 
   return (
@@ -174,6 +198,33 @@ export default function AdminSettingsPage() {
         placeholder="Rechercher un parametre..."
         className="mb-6"
       />
+
+      {/* Admin account — change password */}
+      <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-5 mb-6">
+        <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wider mb-4">Compte Admin</h2>
+        <form onSubmit={handleAdminPwChange} className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <input type="password" placeholder="Mot de passe actuel" value={pwOld}
+            onChange={(e) => setPwOld(e.target.value)} required
+            className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+          <input type="password" placeholder="Nouveau mot de passe" value={pwNew}
+            onChange={(e) => setPwNew(e.target.value)} required
+            className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+          <input type="password" placeholder="Confirmer" value={pwConfirm}
+            onChange={(e) => setPwConfirm(e.target.value)} required
+            className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+          <div className="sm:col-span-3 flex items-center gap-3">
+            <button type="submit" disabled={pwSaving}
+              className="bg-gray-900 hover:bg-gray-700 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors">
+              {pwSaving ? 'Modification...' : 'Changer le mot de passe'}
+            </button>
+            {pwMsg && (
+              <span className={`text-sm ${pwMsg.type === 'ok' ? 'text-green-600' : 'text-red-600'}`}>
+                {pwMsg.text}
+              </span>
+            )}
+          </div>
+        </form>
+      </div>
 
       <div className="space-y-3">
         {sortedGroups.map((groupKey) => {

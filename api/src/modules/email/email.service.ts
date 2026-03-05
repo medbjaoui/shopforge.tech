@@ -164,6 +164,52 @@ export class EmailService {
   }
 
   /**
+   * Email de réinitialisation de mot de passe
+   */
+  async sendPasswordResetEmail(email: string, firstName: string, storeName: string, resetUrl: string): Promise<void> {
+    const transporter = this.createTransporter();
+    if (!transporter) {
+      this.logger.warn('SMTP non configure — email reset password non envoye');
+      return;
+    }
+
+    const html = `
+      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#fff">
+        <div style="background:#111827;padding:24px;text-align:center">
+          <h1 style="color:#fff;margin:0;font-size:20px">ShopForge</h1>
+        </div>
+        <div style="padding:32px 24px">
+          <h2 style="color:#111;margin:0 0 8px">Réinitialisation du mot de passe</h2>
+          <p style="color:#555;margin:0 0 24px;font-size:15px">
+            Bonjour ${firstName}, vous avez demandé la réinitialisation du mot de passe de votre boutique <strong>${storeName}</strong>.
+          </p>
+          <a href="${resetUrl}" style="display:inline-block;background:#111827;color:#fff;text-decoration:none;padding:14px 28px;border-radius:8px;font-weight:600;font-size:14px">
+            Réinitialiser mon mot de passe
+          </a>
+          <p style="margin:24px 0 0;color:#999;font-size:12px">
+            Ce lien est valable pendant 1 heure. Si vous n'avez pas fait cette demande, ignorez cet email.
+          </p>
+        </div>
+        <div style="background:#f9fafb;padding:16px;text-align:center;font-size:11px;color:#999">
+          ShopForge — Plateforme e-commerce Tunisie
+        </div>
+      </div>
+    `;
+
+    try {
+      await transporter.sendMail({
+        from: this.getFrom(),
+        to: email,
+        subject: `Réinitialisation de mot de passe — ${storeName}`,
+        html,
+      });
+      this.logger.log(`Email reset password envoye a ${email}`);
+    } catch (err) {
+      this.logger.error(`Echec envoi email reset password: ${err}`);
+    }
+  }
+
+  /**
    * Alerte limite de plan a 80% (C3)
    */
   async sendPlanLimitWarning(email: string, firstName: string, type: 'products' | 'orders', used: number, max: number): Promise<void> {

@@ -156,6 +156,20 @@ model SuperAdmin {
   @@map("super_admins")
 }
 
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  email     String
+  tenantId  String?
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([token])
+  @@index([email])
+  @@map("password_reset_tokens")
+}
+
 model RefreshToken {
   id        String   @id @default(cuid())
   token     String   @unique

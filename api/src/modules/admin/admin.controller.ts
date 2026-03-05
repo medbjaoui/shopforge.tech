@@ -1,4 +1,5 @@
-import { Controller, Get, Post, Patch, Param, Body, Query, Delete, UseGuards, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Param, Body, Query, Req, Delete, UseGuards, HttpCode, HttpStatus } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { AdminService } from './admin.service';
 import { AdminLoginDto } from './dto/admin-login.dto';
 import { SuperAdminGuard } from '../../common/guards/super-admin.guard';
@@ -30,8 +31,16 @@ export class AdminController {
   @Public()
   @Post('auth/login')
   @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   login(@Body() dto: AdminLoginDto) {
     return this.adminService.login(dto);
+  }
+
+  @UseGuards(SuperAdminGuard)
+  @Post('auth/change-password')
+  @HttpCode(HttpStatus.OK)
+  changeAdminPassword(@Req() req: any, @Body() body: { oldPassword: string; newPassword: string }) {
+    return this.adminService.changeAdminPassword(req.user.id, body.oldPassword, body.newPassword);
   }
 
   // ─── PROTÉGÉ SUPER ADMIN ──────────────────────────────────────────────────

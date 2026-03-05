@@ -1,8 +1,9 @@
-import { Controller, Post, Body, Req, UseGuards, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Post, Patch, Body, Req, UseGuards, HttpCode, HttpStatus } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { Public } from '../../common/decorators/public.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -42,5 +43,38 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   logout(@CurrentUser() user: any) {
     return this.authService.logout(user.id);
+  }
+
+  // Changement de mot de passe (authentifié)
+  @UseGuards(JwtAuthGuard)
+  @Post('change-password')
+  @HttpCode(HttpStatus.OK)
+  changePassword(@CurrentUser() user: any, @Body() dto: ChangePasswordDto) {
+    return this.authService.changePassword(user.id, dto.oldPassword, dto.newPassword);
+  }
+
+  // Mise à jour du profil (prénom, nom)
+  @UseGuards(JwtAuthGuard)
+  @Patch('profile')
+  updateProfile(@CurrentUser() user: any, @Body() body: { firstName?: string; lastName?: string }) {
+    return this.authService.updateProfile(user.id, body);
+  }
+
+  // Mot de passe oublié (public)
+  @Public()
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 3, ttl: 60000 } })
+  forgotPassword(@Body() body: { email: string; storeSlug: string }) {
+    return this.authService.forgotPassword(body.email, body.storeSlug);
+  }
+
+  // Reset mot de passe via token (public)
+  @Public()
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  resetPassword(@Body() body: { token: string; newPassword: string }) {
+    return this.authService.resetPassword(body.token, body.newPassword);
   }
 }

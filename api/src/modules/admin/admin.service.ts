@@ -60,6 +60,19 @@ export class AdminService implements OnModuleInit {
     };
   }
 
+  async changeAdminPassword(adminId: string, oldPassword: string, newPassword: string) {
+    const admin = await this.prisma.superAdmin.findUnique({ where: { id: adminId } });
+    if (!admin) throw new NotFoundException('Admin introuvable');
+
+    const valid = await bcrypt.compare(oldPassword, admin.passwordHash);
+    if (!valid) throw new BadRequestException('Ancien mot de passe incorrect');
+
+    const passwordHash = await bcrypt.hash(newPassword, 12);
+    await this.prisma.superAdmin.update({ where: { id: adminId }, data: { passwordHash } });
+
+    return { message: 'Mot de passe admin modifié avec succès' };
+  }
+
   // ─── STATS GLOBALES ───────────────────────────────────────────────────────
 
   async getStats(days?: number) {

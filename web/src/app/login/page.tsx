@@ -101,12 +101,19 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <p className="mt-5 text-center text-sm text-gray-500">
-          Pas encore de boutique ?{' '}
-          <a href="/register" className="text-orange-500 hover:text-orange-600 font-semibold">
-            Créer ma boutique
-          </a>
-        </p>
+        <div className="mt-5 text-center space-y-2">
+          <p className="text-sm text-gray-500">
+            <a href="/forgot-password" className="text-orange-500 hover:text-orange-600 font-medium">
+              Mot de passe oublié ?
+            </a>
+          </p>
+          <p className="text-sm text-gray-500">
+            Pas encore de boutique ?{' '}
+            <a href="/register" className="text-orange-500 hover:text-orange-600 font-semibold">
+              Créer ma boutique
+            </a>
+          </p>
+        </div>
       </div>
 
       <p className="mt-6 text-xs text-gray-600">

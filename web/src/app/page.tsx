@@ -345,12 +345,13 @@ export default function HomePage() {
                           {[
                             { name: 'Robe Jasmine', price: '89.900', img: 'https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=300&h=400&fit=crop' },
                             { name: 'Sac Medina', price: '65.000', img: 'https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=300&h=400&fit=crop' },
-                            { name: 'Collier Djerba', price: '35.500', img: 'https://images.unsplash.com/photo-1515562141589-67f0d569b6c4?w=300&h=400&fit=crop' },
+                            { name: 'Collier Djerba', price: '35.500', img: 'https://images.unsplash.com/photo-1611652022419-a9419f74343d?w=300&h=400&fit=crop' },
                             { name: 'Sandales Sidi', price: '49.900', img: 'https://images.unsplash.com/photo-1543163521-1bf539c55dd2?w=300&h=400&fit=crop' },
                           ].map((p, i) => (
                             <div key={i} className="bg-gray-50 rounded-xl overflow-hidden">
                               {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img src={p.img} alt={p.name} className="h-28 w-full object-cover" loading="lazy" />
+                              <img src={p.img} alt={p.name} className="h-28 w-full object-cover" loading="lazy"
+                                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                               <div className="p-2">
                                 <p className="text-[9px] text-gray-900 font-semibold truncate">{p.name}</p>
                                 <p className="text-[10px] text-orange-600 font-bold">{p.price} TND</p>

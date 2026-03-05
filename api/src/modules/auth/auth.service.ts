@@ -233,6 +233,118 @@ export class AuthService {
     return { message: 'Déconnecté avec succès' };
   }
 
+  // ─── CHANGE PASSWORD ────────────────────────────────────────────────────────
+
+  async changePassword(userId: string, oldPassword: string, newPassword: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new BadRequestException('Utilisateur introuvable');
+
+    const valid = await bcrypt.compare(oldPassword, user.passwordHash);
+    if (!valid) throw new BadRequestException('Ancien mot de passe incorrect');
+
+    const passwordHash = await bcrypt.hash(newPassword, 12);
+    await this.prisma.user.update({ where: { id: userId }, data: { passwordHash } });
+
+    // Invalider tous les refresh tokens (force re-login)
+    await this.prisma.refreshToken.deleteMany({ where: { userId } });
+
+    return { message: 'Mot de passe modifié avec succès' };
+  }
+
+  // ─── UPDATE PROFILE ─────────────────────────────────────────────────────────
+
+  async updateProfile(userId: string, data: { firstName?: string; lastName?: string }) {
+    const update: any = {};
+    if (data.firstName) update.firstName = data.firstName;
+    if (data.lastName) update.lastName = data.lastName;
+
+    if (Object.keys(update).length === 0) {
+      throw new BadRequestException('Aucun champ à modifier');
+    }
+
+    const user = await this.prisma.user.update({
+      where: { id: userId },
+      data: update,
+      select: { id: true, email: true, firstName: true, lastName: true, role: true },
+    });
+
+    return user;
+  }
+
+  // ─── FORGOT PASSWORD ────────────────────────────────────────────────────────
+
+  async forgotPassword(email: string, storeSlug: string) {
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { slug: storeSlug },
+      select: { id: true, name: true },
+    });
+    if (!tenant) {
+      // Ne pas révéler si le store existe
+      return { message: 'Si un compte existe avec cet email, un lien de réinitialisation a été envoyé.' };
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { email_tenantId: { email, tenantId: tenant.id } },
+    });
+    if (!user) {
+      return { message: 'Si un compte existe avec cet email, un lien de réinitialisation a été envoyé.' };
+    }
+
+    // Supprimer les anciens tokens de reset pour cet email
+    await this.prisma.passwordResetToken.deleteMany({
+      where: { email, tenantId: tenant.id },
+    });
+
+    // Générer un token sécurisé
+    const token = randomBytes(32).toString('hex');
+    const expiresAt = new Date();
+    expiresAt.setHours(expiresAt.getHours() + 1); // 1h
+
+    await this.prisma.passwordResetToken.create({
+      data: { token, email, tenantId: tenant.id, expiresAt },
+    });
+
+    // Envoyer l'email (non-bloquant)
+    const resetUrl = `${this.config.get('FRONTEND_URL', 'http://localhost:3000')}/reset-password?token=${token}`;
+    this.emailService.sendPasswordResetEmail(
+      email,
+      user.firstName ?? 'Marchand',
+      tenant.name,
+      resetUrl,
+    ).catch((err) => this.logger.warn('Password reset email failed', err));
+
+    return { message: 'Si un compte existe avec cet email, un lien de réinitialisation a été envoyé.' };
+  }
+
+  // ─── RESET PASSWORD ─────────────────────────────────────────────────────────
+
+  async resetPassword(token: string, newPassword: string) {
+    const resetToken = await this.prisma.passwordResetToken.findUnique({
+      where: { token },
+    });
+
+    if (!resetToken || resetToken.usedAt || resetToken.expiresAt < new Date()) {
+      throw new BadRequestException('Lien de réinitialisation invalide ou expiré');
+    }
+
+    const user = await this.prisma.user.findFirst({
+      where: { email: resetToken.email, tenantId: resetToken.tenantId ?? undefined },
+    });
+    if (!user) {
+      throw new BadRequestException('Compte introuvable');
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 12);
+
+    await this.prisma.$transaction([
+      this.prisma.user.update({ where: { id: user.id }, data: { passwordHash } }),
+      this.prisma.passwordResetToken.update({ where: { id: resetToken.id }, data: { usedAt: new Date() } }),
+      this.prisma.refreshToken.deleteMany({ where: { userId: user.id } }),
+    ]);
+
+    return { message: 'Mot de passe réinitialisé avec succès. Vous pouvez maintenant vous connecter.' };
+  }
+
   private async generateTokens(userId: string, tenantId: string) {
     const payload = { sub: userId, tenantId };
 
