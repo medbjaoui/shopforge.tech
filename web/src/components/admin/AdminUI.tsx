@@ -10,9 +10,10 @@ interface KpiCardProps {
   icon?: React.ReactNode;
   highlight?: boolean;
   href?: string;
+  color?: string;
 }
 
-export function KpiCard({ label, value, sub, icon, highlight, href }: KpiCardProps) {
+export function KpiCard({ label, value, sub, icon, highlight, href, color }: KpiCardProps) {
   const card = (
     <div className={`rounded-xl p-4 border transition-colors shadow-sm ${
       highlight
@@ -23,7 +24,7 @@ export function KpiCard({ label, value, sub, icon, highlight, href }: KpiCardPro
         <span className="text-gray-500 text-xs uppercase tracking-wider">{label}</span>
         {icon && <span className="text-gray-400">{icon}</span>}
       </div>
-      <p className={`text-2xl font-bold font-mono ${highlight ? 'text-indigo-600' : 'text-gray-900'}`}>
+      <p className={`text-2xl font-bold font-mono ${color || (highlight ? 'text-indigo-600' : 'text-gray-900')}`}>
         {value}
       </p>
       {sub && <p className="text-xs text-gray-500 mt-1">{sub}</p>}
@@ -123,10 +124,11 @@ interface PageHeaderProps {
   title: string;
   subtitle?: string;
   breadcrumb?: BreadcrumbItem[];
+  action?: React.ReactNode;
   children?: React.ReactNode;
 }
 
-export function PageHeader({ title, subtitle, breadcrumb, children }: PageHeaderProps) {
+export function PageHeader({ title, subtitle, breadcrumb, action, children }: PageHeaderProps) {
   return (
     <div className="mb-6">
       {breadcrumb && breadcrumb.length > 0 && (
@@ -150,6 +152,7 @@ export function PageHeader({ title, subtitle, breadcrumb, children }: PageHeader
           <h1 className="text-xl font-bold text-gray-900">{title}</h1>
           {subtitle && <p className="text-sm text-gray-500 mt-0.5">{subtitle}</p>}
         </div>
+        {action && <div className="flex items-center gap-3">{action}</div>}
         {children && <div className="flex items-center gap-3">{children}</div>}
       </div>
     </div>
@@ -160,18 +163,22 @@ export function PageHeader({ title, subtitle, breadcrumb, children }: PageHeader
 
 interface SectionCardProps {
   title?: string;
+  subtitle?: string;
   action?: React.ReactNode;
   children: React.ReactNode;
   className?: string;
   noPadding?: boolean;
 }
 
-export function SectionCard({ title, action, children, className = '', noPadding }: SectionCardProps) {
+export function SectionCard({ title, subtitle, action, children, className = '', noPadding }: SectionCardProps) {
   return (
     <div className={`bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm ${className}`}>
       {title && (
         <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-200">
-          <h2 className="text-sm font-semibold text-gray-900">{title}</h2>
+          <div>
+            <h2 className="text-sm font-semibold text-gray-900">{title}</h2>
+            {subtitle && <p className="text-xs text-gray-500 mt-0.5">{subtitle}</p>}
+          </div>
           {action}
         </div>
       )}

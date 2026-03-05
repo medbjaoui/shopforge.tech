@@ -130,7 +130,7 @@ export default function AdminWalletPage() {
                     <p className="text-xs text-gray-400">{w.tenantSlug}.shopforge.tech</p>
                   </td>
                   <td className="px-4 py-3">
-                    <Badge color={PLAN_BADGE_COLORS[w.plan] ?? 'gray'} label={w.plan} />
+                    <Badge color={PLAN_BADGE_COLORS[w.plan as keyof typeof PLAN_BADGE_COLORS] ?? 'gray'} label={w.plan} />
                   </td>
                   <td className="px-4 py-3 text-right">
                     <span className={`font-semibold ${w.isLow ? 'text-red-600' : 'text-gray-900'}`}>

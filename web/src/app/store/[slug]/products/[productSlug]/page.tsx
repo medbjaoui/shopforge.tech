@@ -33,6 +33,7 @@ async function getProduct(storeSlug: string, productSlug: string): Promise<Produ
 
 async function getTenant(slug: string): Promise<Tenant | null> {
   try {
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
     const res = await fetch(`${API_URL}/tenants/public/${slug}`, { next: { revalidate: 60 } });
     if (!res.ok) return null;
     return res.json();

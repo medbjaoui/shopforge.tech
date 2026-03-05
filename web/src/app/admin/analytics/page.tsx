@@ -184,7 +184,7 @@ export default function AdminAnalyticsPage() {
             {Object.entries(ltv.byPlan).map(([plan, info]) => (
               <div key={plan} className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <span className={`text-xs font-bold px-2 py-0.5 rounded ${PLAN_BADGE_COLORS[plan] ?? 'bg-gray-100 text-gray-600'}`}>
+                  <span className={`text-xs font-bold px-2 py-0.5 rounded ${PLAN_BADGE_COLORS[plan as keyof typeof PLAN_BADGE_COLORS] ?? 'bg-gray-100 text-gray-600'}`}>
                     {plan}
                   </span>
                   <span className="text-sm text-gray-600">{info.tenants} tenants</span>
@@ -224,7 +224,7 @@ export default function AdminAnalyticsPage() {
         {Object.keys(churn.planBreakdown).length > 0 && (
           <div className="flex gap-3 mb-4">
             {Object.entries(churn.planBreakdown).map(([plan, count]) => (
-              <span key={plan} className={`text-xs font-semibold px-2.5 py-1 rounded ${PLAN_BADGE_COLORS[plan] ?? 'bg-gray-100 text-gray-600'}`}>
+              <span key={plan} className={`text-xs font-semibold px-2.5 py-1 rounded ${PLAN_BADGE_COLORS[plan as keyof typeof PLAN_BADGE_COLORS] ?? 'bg-gray-100 text-gray-600'}`}>
                 {plan}: {count}
               </span>
             ))}
@@ -249,7 +249,7 @@ export default function AdminAnalyticsPage() {
                   <tr key={t.id}>
                     <td className="py-2 font-medium text-gray-800">{t.name}</td>
                     <td className="py-2 text-center">
-                      <span className={`text-xs px-1.5 py-0.5 rounded ${PLAN_BADGE_COLORS[t.plan] ?? ''}`}>{t.plan}</span>
+                      <span className={`text-xs px-1.5 py-0.5 rounded ${PLAN_BADGE_COLORS[t.plan as keyof typeof PLAN_BADGE_COLORS] ?? ''}`}>{t.plan}</span>
                     </td>
                     <td className="py-2 text-center text-gray-600">{t._count.products}</td>
                     <td className="py-2 text-center text-gray-600">{t._count.orders}</td>
