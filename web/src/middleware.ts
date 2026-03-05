@@ -46,6 +46,18 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // ── Redirect /store/[slug] → [slug].shopforge.tech (canonical URL) ─────────
+  if (hostname === 'shopforge.tech' && pathname.startsWith('/store/')) {
+    const match = pathname.match(/^\/store\/([^\/]+)(\/.*)?$/);
+    if (match) {
+      const [, slug, rest] = match;
+      const url = request.nextUrl.clone();
+      url.hostname = `${slug}.shopforge.tech`;
+      url.pathname = rest || '/';
+      return NextResponse.redirect(url, 301); // Permanent redirect
+    }
+  }
+
   // ── Store vitrine (storename.shopforge.tech) ──────────────────────────────
   const parts = hostname.split('.');
   const subdomain = parts.length >= 3 ? parts[0] : null;
