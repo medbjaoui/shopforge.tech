@@ -52,7 +52,9 @@ export async function middleware(request: NextRequest) {
     if (match) {
       const [, slug, rest] = match;
       const url = request.nextUrl.clone();
+      url.protocol = 'https:';
       url.hostname = `${slug}.shopforge.tech`;
+      url.port = ''; // Remove port from URL
       url.pathname = rest || '/';
       return NextResponse.redirect(url, 301); // Permanent redirect
     }
