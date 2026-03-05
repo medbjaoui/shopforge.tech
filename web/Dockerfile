@@ -7,6 +7,11 @@ COPY package*.json ./
 RUN npm ci
 
 COPY . .
+
+# Build-time env vars for Next.js (NEXT_PUBLIC_* must be set at build time)
+ARG NEXT_PUBLIC_API_URL=https://api.shopforge.tech
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+
 RUN npm run build
 
 # ─── Production stage ─────────────────────────────────────────────────────────
