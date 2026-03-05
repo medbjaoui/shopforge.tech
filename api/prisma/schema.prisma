@@ -1,0 +1,910 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── TENANTS ──────────────────────────────────────────────────────────────────
+
+model Tenant {
+  id                    String   @id @default(cuid())
+  name                  String
+  slug                  String   @unique
+  domain                String?  @unique
+  isActive              Boolean  @default(true)
+  plan                  PlanType @default(FREE)
+  // Onboarding (@default(true) pour ne pas bloquer les tenants existants)
+  onboardingCompleted   Boolean  @default(true)
+  isPublished           Boolean  @default(true)
+  theme                 String   @default("default")
+  // Store customization
+  description           String?
+  logo                  String?
+  phone                 String?
+  whatsapp              String?  // Numero WhatsApp (ex: +21698000000)
+  address               String?
+  contactEmail          String?
+  shippingFee           Decimal? @db.Decimal(10, 2)
+  freeShippingThreshold Decimal? @db.Decimal(10, 2)
+  returnPolicy          String?
+  // Banniere hero
+  bannerImage           String?
+  // Reseaux sociaux
+  instagram             String?
+  facebook              String?
+  tiktok                String?
+  // Barre d'annonce
+  announcementText      String?
+  announcementEnabled   Boolean  @default(false)
+  announcementBgColor   String?
+  announcementTextColor String?
+  // Contenu hero personnalise
+  heroTitle             String?
+  heroSubtitle          String?
+  heroCta               String?
+  // Favicon & Police
+  favicon               String?
+  font                  String   @default("system")
+  // Moyens de paiement
+  codEnabled            Boolean  @default(true)
+  bankTransferEnabled   Boolean  @default(false)
+  bankTransferDetails   String?  // RIB, IBAN, nom banque (texte libre)
+  clickToPayEnabled     Boolean  @default(false)
+  floussiEnabled        Boolean  @default(false)
+  // Informations fiscales & legales
+  matriculeFiscal       String?  // Format: 1234567/A/B/C/000
+  rne                   String?  // Registre National des Entreprises
+  legalName             String?  // Raison sociale officielle
+  legalAddress          String?  // Adresse legale complete
+  // Notifications Telegram
+  telegramChatId        String?
+  notificationChannel   String?  @default("EMAIL")  // EMAIL | TELEGRAM | BOTH
+  telegramLinkCode      String?
+  telegramLinkExpiry    DateTime?
+  // Meta / Facebook integration
+  metaPixelId              String?  // Facebook Pixel ID (ex: 123456789012345)
+  metaAccessToken          String?  // Conversions API access token
+  metaIntegrationEnabled   Boolean  @default(false)
+  whatsappWidgetEnabled    Boolean  @default(false)
+  // Boutique — langue & localisation
+  storeLanguage            String   @default("fr")  // fr | ar
+  // Parrainage
+  referralCode             String?  @unique          // Code parrainage unique (auto-généré)
+  referredById             String?                   // ID du tenant parrain
+  referredBy               Tenant?  @relation("TenantReferrals", fields: [referredById], references: [id])
+  referrals                Tenant[] @relation("TenantReferrals")
+  referralRewardsGiven     ReferralReward[] @relation("ReferralGiven")
+  referralRewardReceived   ReferralReward? @relation("ReferralReceived")
+  // Analytics & Acquisition
+  acquisitionSource     String?   // organic, referral, ads, direct
+  utmSource             String?
+  utmMedium             String?
+  utmCampaign           String?
+  activatedAt           DateTime? // Date 1er produit + 1ere commande recue
+  churnedAt             DateTime? // Date detectee inactive
+  lastActivityAt        DateTime? // Dernier login OU action API
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  users            User[]
+  products         Product[]
+  categories       Category[]
+  orders           Order[]
+  coupons          Coupon[]
+  tenantCarriers   TenantCarrier[]
+  invoices         Invoice[]
+  reviews          Review[]
+  customers        Customer[]
+  customerTags     CustomerTag[]
+  aiUsage          AiUsage[]
+  wallet           TenantWallet?
+  commissions      CommissionRecord[]
+  creditCodeUsages CreditCodeUsage[]
+  analyticsEvents  AnalyticsEvent[]
+  dailyFunnels     DailyFunnel[]
+  tenantMetrics    TenantMetricsDaily[]
+  auditLogs        AuditLog[]
+
+  @@map("tenants")
+}
+
+enum PlanType {
+  FREE
+  STARTER
+  PRO
+}
+
+// ─── USERS ────────────────────────────────────────────────────────────────────
+
+model User {
+  id           String   @id @default(cuid())
+  email        String
+  passwordHash String
+  firstName    String?
+  lastName     String?
+  role         UserRole @default(STAFF)
+  isActive     Boolean  @default(true)
+  tenantId     String
+  lastLoginAt  DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  tenant        Tenant         @relation(fields: [tenantId], references: [id])
+  refreshTokens RefreshToken[]
+
+  @@unique([email, tenantId])
+  @@index([tenantId])
+  @@map("users")
+}
+
+enum UserRole {
+  OWNER
+  ADMIN
+  STAFF
+}
+
+model SuperAdmin {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+
+  @@map("super_admins")
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+// ─── CATALOG ──────────────────────────────────────────────────────────────────
+
+model Category {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String
+  tenantId  String
+  createdAt DateTime @default(now())
+
+  tenant   Tenant    @relation(fields: [tenantId], references: [id])
+  products Product[]
+
+  @@unique([slug, tenantId])
+  @@index([tenantId])
+  @@map("categories")
+}
+
+model Product {
+  id                String   @id @default(cuid())
+  name              String
+  slug              String
+  description       String?
+  price             Decimal  @db.Decimal(10, 2)
+  comparePrice      Decimal? @db.Decimal(10, 2)
+  costPrice         Decimal? @db.Decimal(10, 2)
+  stock             Int      @default(0)
+  barcode           String?
+  lowStockThreshold Int      @default(5)
+  isActive          Boolean  @default(true)
+  images            String[]
+  tenantId          String
+  categoryId        String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  tenant         Tenant           @relation(fields: [tenantId], references: [id])
+  category       Category?        @relation(fields: [categoryId], references: [id])
+  orderItems     OrderItem[]
+  variants       ProductVariant[]
+  reviews        Review[]
+  stockMovements StockMovement[]
+
+  @@unique([slug, tenantId])
+  @@index([tenantId])
+  @@index([tenantId, categoryId])
+  @@index([tenantId, isActive])
+  @@map("products")
+}
+
+model ProductVariant {
+  id        String   @id @default(cuid())
+  productId String
+  name      String
+  price     Decimal? @db.Decimal(10, 2)
+  costPrice Decimal? @db.Decimal(10, 2)
+  stock     Int      @default(0)
+  sku       String?
+  barcode   String?
+  createdAt DateTime @default(now())
+
+  product        Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  orderItems     OrderItem[]
+  stockMovements StockMovement[]
+
+  @@index([productId])
+  @@map("product_variants")
+}
+
+// ─── ORDERS ───────────────────────────────────────────────────────────────────
+
+model Order {
+  id              String      @id @default(cuid())
+  orderNumber     String
+  status          OrderStatus @default(PENDING)
+  totalAmount     Decimal     @db.Decimal(10, 2)
+  shippingFee     Decimal     @default(0) @db.Decimal(10, 2)
+  discountAmount  Decimal     @default(0) @db.Decimal(10, 2)
+  couponCode      String?
+  paymentMethod   PaymentMethod @default(COD)
+  paymentStatus   PaymentStatus @default(PENDING)
+  paymentRef      String?       // Référence transaction gateway
+  customerName    String
+  customerEmail   String?
+  customerPhone   String
+  shippingAddress Json?
+  notes           String?
+  // Retour / Remboursement
+  returnReason    String?
+  returnRequestedAt DateTime?
+  refundAmount    Decimal?    @db.Decimal(10, 2)
+  refundedAt      DateTime?
+  exchangeReason        String?
+  exchangeRequestedAt   DateTime?
+  exchangedAt           DateTime?
+  lastAlertedAt   DateTime?
+  sessionId       String?     // Analytics session tracking
+  tenantId        String
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  customerId      String?
+
+  tenant   Tenant      @relation(fields: [tenantId], references: [id])
+  customer Customer?   @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  items    OrderItem[]
+  shipment Shipment?
+  invoice  Invoice?
+
+  @@unique([orderNumber, tenantId])
+  @@index([tenantId])
+  @@index([tenantId, status])
+  @@index([tenantId, createdAt])
+  @@map("orders")
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  RETURN_REQUESTED
+  RETURNED
+  REFUNDED
+  EXCHANGE_REQUESTED
+  EXCHANGED
+}
+
+enum PaymentMethod {
+  COD           // Paiement à la livraison
+  BANK_TRANSFER // Virement bancaire
+  CLICK_TO_PAY  // Clictopay (UIB) — paiement carte en ligne
+  FLOUSSI       // Floussi — portefeuille mobile
+}
+
+enum PaymentStatus {
+  PENDING    // En attente de paiement
+  PAID       // Paiement confirmé par la gateway
+  FAILED     // Paiement échoué / annulé
+  REFUNDED   // Remboursé
+}
+
+model OrderItem {
+  id        String  @id @default(cuid())
+  quantity  Int
+  unitPrice Decimal @db.Decimal(10, 2)
+  productId String
+  orderId   String
+  variantId String?
+
+  product Product         @relation(fields: [productId], references: [id])
+  order   Order           @relation(fields: [orderId], references: [id])
+  variant ProductVariant? @relation(fields: [variantId], references: [id])
+
+  @@index([orderId])
+  @@index([productId])
+  @@map("order_items")
+}
+
+// ─── REVIEWS ─────────────────────────────────────────────────────────────────
+
+enum ReviewStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model Review {
+  id          String       @id @default(cuid())
+  productId   String
+  tenantId    String
+  rating      Int          @db.SmallInt
+  authorName  String
+  authorEmail String
+  comment     String?
+  status      ReviewStatus @default(PENDING)
+  createdAt   DateTime     @default(now())
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@index([tenantId])
+  @@map("reviews")
+}
+
+// ─── COUPONS ──────────────────────────────────────────────────────────────────
+
+model Coupon {
+  id        String     @id @default(cuid())
+  tenantId  String
+  code      String
+  type      CouponType
+  value     Decimal    @db.Decimal(10, 2)
+  minAmount Decimal?   @db.Decimal(10, 2)
+  maxUses   Int?
+  usedCount Int        @default(0)
+  expiresAt DateTime?
+  isActive  Boolean    @default(true)
+  createdAt DateTime   @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([code, tenantId])
+  @@index([tenantId])
+  @@map("coupons")
+}
+
+enum CouponType {
+  PERCENT
+  FIXED
+}
+
+// ─── TRANSPORTEURS ────────────────────────────────────────────────────────────
+
+// Transporteur configuré par le super admin (disponible sur la plateforme)
+model Carrier {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique  // "aramex", "laposte-tn", "dhl", "topnet"
+  logoUrl     String?
+  apiBaseUrl  String?           // URL de base de l'API de tracking
+  apiType     String   @default("generic") // "aramex" | "dhl" | "laposte-tn" | "generic"
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenantCarriers TenantCarrier[]
+  shipments      Shipment[]
+
+  @@map("carriers")
+}
+
+// Configuration d'un transporteur par boutique (token API propre à chaque boutique)
+model TenantCarrier {
+  id        String   @id @default(cuid())
+  tenantId  String
+  carrierId String
+  apiKey    String?           // Token API personnel de la boutique
+  isActive  Boolean  @default(true)
+  isDefault Boolean  @default(false) // Transporteur par défaut de la boutique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  carrier Carrier @relation(fields: [carrierId], references: [id])
+
+  @@unique([tenantId, carrierId])
+  @@index([tenantId])
+  @@map("tenant_carriers")
+}
+
+// Expédition liée à une commande
+model Shipment {
+  id             String         @id @default(cuid())
+  orderId        String         @unique // une seule expédition par commande
+  tenantId       String
+  carrierId      String
+  trackingNumber String?
+  trackingUrl    String?
+  status         ShipmentStatus @default(PENDING)
+  lastSyncedAt   DateTime?
+  rawStatus      String?        // statut brut renvoyé par l'API du transporteur
+  notes          String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  carrier Carrier @relation(fields: [carrierId], references: [id])
+
+  @@index([tenantId])
+  @@map("shipments")
+}
+
+enum ShipmentStatus {
+  PENDING        // Créée, pas encore prise en charge
+  PICKED_UP      // Récupérée par le transporteur
+  IN_TRANSIT     // En cours d'acheminement
+  OUT_FOR_DELIVERY // En cours de livraison
+  DELIVERED      // Livrée
+  FAILED         // Échec de livraison
+  RETURNED       // Retournée
+}
+
+// ─── CONFIGURATION PLATEFORME ─────────────────────────────────────────────────
+
+model PlatformConfig {
+  key       String   @id
+  value     String   // JSON-encoded value
+  group     String   @default("general")
+  label     String   @default("")
+  type      String   @default("string") // string | number | boolean
+  updatedAt DateTime @updatedAt
+
+  @@map("platform_configs")
+}
+
+// ─── FACTURES ────────────────────────────────────────────────────────────────
+
+enum InvoiceStatus {
+  DRAFT      // Brouillon
+  ISSUED     // Émise (verrouillée)
+  CANCELLED  // Annulée
+}
+
+model Invoice {
+  id              String        @id @default(cuid())
+  invoiceNumber   String        @unique   // SF-2026-000001
+  status          InvoiceStatus @default(ISSUED)
+
+  // Montants
+  totalHT         Decimal       @db.Decimal(10, 3)
+  totalTVA        Decimal       @db.Decimal(10, 3)
+  totalTTC        Decimal       @db.Decimal(10, 2)
+  timbreFiscal    Decimal       @default(0.600) @db.Decimal(10, 3)
+  shippingFeeHT   Decimal       @default(0) @db.Decimal(10, 3)
+  shippingFeeTVA  Decimal       @default(0) @db.Decimal(10, 3)
+  discountAmount  Decimal       @default(0) @db.Decimal(10, 2)
+  finalTotal      Decimal       @db.Decimal(10, 2) // totalTTC + timbre
+  tvaRate         Decimal       @default(0.19) @db.Decimal(5, 4)
+
+  // Vendeur (snapshot au moment de la facture)
+  sellerName      String
+  sellerAddress   String?
+  sellerPhone     String?
+  sellerEmail     String?
+  sellerMF        String        // Matricule fiscal — obligatoire
+  sellerRNE       String?
+
+  // Acheteur
+  buyerName       String
+  buyerEmail      String
+  buyerPhone      String?
+  buyerAddress    Json?
+
+  paymentMethod   PaymentMethod @default(COD)
+  orderId         String        @unique
+  tenantId        String
+  issuedAt        DateTime      @default(now())
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  order           Order         @relation(fields: [orderId], references: [id])
+  tenant          Tenant        @relation(fields: [tenantId], references: [id])
+  items           InvoiceItem[]
+
+  @@index([tenantId])
+  @@index([issuedAt])
+  @@map("invoices")
+}
+
+model InvoiceItem {
+  id              String  @id @default(cuid())
+  invoiceId       String
+  description     String
+  quantity        Int
+  unitPriceHT     Decimal @db.Decimal(10, 3)
+  unitPriceTTC    Decimal @db.Decimal(10, 2)
+  totalHT         Decimal @db.Decimal(10, 3)
+  totalTVA        Decimal @db.Decimal(10, 3)
+  totalTTC        Decimal @db.Decimal(10, 2)
+  tvaRate         Decimal @default(0.19) @db.Decimal(5, 4)
+
+  invoice         Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@map("invoice_items")
+}
+
+// ─── GESTION DE STOCK ────────────────────────────────────────────────────────
+
+enum StockMovementType {
+  PURCHASE    // Réapprovisionnement
+  SALE        // Vente (auto: création commande)
+  RETURN      // Retour (auto: annulation/retour/remboursement)
+  ADJUSTMENT  // Ajustement manuel
+  DAMAGE      // Perte / casse
+  INITIAL     // Stock initial (import CSV)
+}
+
+model StockMovement {
+  id          String            @id @default(cuid())
+  tenantId    String
+  productId   String
+  variantId   String?
+  type        StockMovementType
+  quantity    Int               // Signé : négatif pour SALE/DAMAGE, positif pour PURCHASE/RETURN
+  reason      String?           // Texte libre (obligatoire pour ADJUSTMENT/DAMAGE)
+  reference   String?           // Ex: "ORD-1709876543", "CSV Import 2026-03-03"
+  costPrice   Decimal?          @db.Decimal(10, 2)
+  stockBefore Int               // Snapshot stock avant mouvement
+  stockAfter  Int               // Snapshot stock après mouvement
+  createdAt   DateTime          @default(now())
+
+  product Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  variant ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([tenantId, productId])
+  @@index([tenantId, createdAt])
+  @@map("stock_movements")
+}
+
+// ─── CRM ─────────────────────────────────────────────────────────────────────
+
+enum CustomerSource {
+  CHECKOUT  // Créé auto via commande
+  MANUAL    // Créé manuellement par le marchand
+  IMPORT    // Importé CSV
+}
+
+enum CustomerStatus {
+  ACTIVE
+  INACTIVE
+}
+
+model Customer {
+  id              String         @id @default(cuid())
+  tenantId        String
+  firstName       String
+  lastName        String
+  phone           String         // Identifiant primaire en Tunisie (+216XXXXXXXX)
+  email           String?
+  company         String?
+  matriculeFiscal String?        // B2B : Format 1234567/A/B/C/000
+  source          CustomerSource @default(CHECKOUT)
+  status          CustomerStatus @default(ACTIVE)
+  totalSpent      Decimal        @default(0) @db.Decimal(10, 2)
+  orderCount      Int            @default(0)
+  lastOrderAt     DateTime?
+  firstOrderAt    DateTime?      // Date premiere commande (analytics)
+  notes           String?        // Note libre du marchand
+  password        String?        // Hash bcrypt — null = CRM uniquement, set = compte vitrine actif
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  tenant    Tenant            @relation(fields: [tenantId], references: [id])
+  orders    Order[]
+  addresses CustomerAddress[]
+  tags      CustomerTagLink[]
+
+  @@unique([phone, tenantId])
+  @@index([tenantId])
+  @@index([tenantId, email])
+  @@index([tenantId, status])
+  @@index([tenantId, lastOrderAt])
+  @@index([tenantId, totalSpent])
+  @@map("customers")
+}
+
+model CustomerAddress {
+  id          String   @id @default(cuid())
+  customerId  String
+  label       String   @default("Domicile")
+  line1       String
+  line2       String?
+  city        String
+  governorate String   // Un des 24 gouvernorats tunisiens
+  postalCode  String?
+  country     String   @default("Tunisie")
+  isDefault   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([customerId])
+  @@map("customer_addresses")
+}
+
+model CustomerTag {
+  id        String   @id @default(cuid())
+  tenantId  String
+  name      String
+  color     String   @default("#6B7280")
+  createdAt DateTime @default(now())
+
+  tenant    Tenant            @relation(fields: [tenantId], references: [id])
+  customers CustomerTagLink[]
+
+  @@unique([name, tenantId])
+  @@index([tenantId])
+  @@map("customer_tags")
+}
+
+model CustomerTagLink {
+  customerId String
+  tagId      String
+
+  customer Customer    @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  tag      CustomerTag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([customerId, tagId])
+  @@map("customer_tag_links")
+}
+
+// ─── AI USAGE TRACKING ──────────────────────────────────────────────────────
+
+enum AiFeature {
+  PRODUCT_DESCRIPTION
+  STORE_CHATBOT
+  REVIEW_SENTIMENT
+  DASHBOARD_INSIGHTS
+  ORDER_RESPONSE
+}
+
+model AiUsage {
+  id            String    @id @default(cuid())
+  tenantId      String
+  tenant        Tenant    @relation(fields: [tenantId], references: [id])
+  feature       AiFeature
+  inputTokens   Int       @default(0)
+  outputTokens  Int       @default(0)
+  model         String
+  durationMs    Int       @default(0)
+  createdAt     DateTime  @default(now())
+
+  @@index([tenantId])
+  @@index([tenantId, createdAt])
+  @@map("ai_usage")
+}
+
+// ─── WALLET & COMMISSIONS ────────────────────────────────────────────────────
+
+enum WalletTxType {
+  TOPUP       // Admin crédite le wallet du marchand
+  COMMISSION  // Déduit automatiquement sur commande DELIVERED
+  REFUND      // Remboursement si commande retournée après commission prise
+  ADJUSTMENT  // Ajustement manuel par admin
+  WELCOME     // Solde de bienvenu offert à l'inscription
+  REDEEM      // Code promo utilisé par le marchand
+}
+
+enum CommissionStatus {
+  COLLECTED   // Commission déduite (commande livrée)
+  REFUNDED    // Commission remboursée (commande retournée)
+}
+
+model TenantWallet {
+  id              String   @id @default(cuid())
+  tenantId        String   @unique
+  balance         Decimal  @default(0) @db.Decimal(10, 3)
+  totalTopup      Decimal  @default(0) @db.Decimal(10, 3)
+  totalCommission Decimal  @default(0) @db.Decimal(10, 3)
+  minimumBalance  Decimal  @default(10) @db.Decimal(10, 3)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  tenant       Tenant             @relation(fields: [tenantId], references: [id])
+  transactions WalletTransaction[]
+  commissions  CommissionRecord[]
+
+  @@map("tenant_wallets")
+}
+
+model WalletTransaction {
+  id            String       @id @default(cuid())
+  walletId      String
+  type          WalletTxType
+  amount        Decimal      @db.Decimal(10, 3)
+  balanceBefore Decimal      @db.Decimal(10, 3)
+  balanceAfter  Decimal      @db.Decimal(10, 3)
+  description   String?
+  reference     String?      // orderId pour les commissions
+  createdAt     DateTime     @default(now())
+
+  wallet TenantWallet @relation(fields: [walletId], references: [id])
+
+  @@index([walletId])
+  @@index([walletId, createdAt])
+  @@map("wallet_transactions")
+}
+
+model CommissionRecord {
+  id               String           @id @default(cuid())
+  tenantId         String
+  walletId         String
+  orderId          String           @unique
+  orderAmount      Decimal          @db.Decimal(10, 2)
+  commissionRate   Decimal          @db.Decimal(5, 4)
+  commissionAmount Decimal          @db.Decimal(10, 3)
+  status           CommissionStatus @default(COLLECTED)
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  tenant Tenant       @relation(fields: [tenantId], references: [id])
+  wallet TenantWallet @relation(fields: [walletId], references: [id])
+
+  @@index([tenantId])
+  @@index([tenantId, createdAt])
+  @@map("commission_records")
+}
+
+// ─── ANALYTICS ──────────────────────────────────────────────────────────────
+
+model AnalyticsEvent {
+  id          String   @id @default(cuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+
+  visitorId   String?           // cookie anonyme
+  customerId  String?           // client connecte
+  userId      String?           // marchand
+
+  event       String            // page_view, product_view, add_to_cart, checkout_start, purchase, etc.
+  properties  Json?             // { productId, orderId, value, source, ... }
+
+  page        String?
+  referrer    String?
+  utmSource   String?
+  utmMedium   String?
+  utmCampaign String?
+
+  deviceType  String?           // mobile, desktop, tablet
+  sessionId   String?
+  createdAt   DateTime @default(now())
+
+  @@index([tenantId, event, createdAt])
+  @@index([tenantId, createdAt])
+  @@index([tenantId, visitorId, createdAt])
+  @@index([sessionId])
+  @@map("analytics_events")
+}
+
+model DailyFunnel {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  date      DateTime @db.Date
+
+  visitors       Int     @default(0)
+  productViews   Int     @default(0)
+  addToCarts     Int     @default(0)
+  checkoutStarts Int     @default(0)
+  purchases      Int     @default(0)
+  revenue        Decimal @default(0) @db.Decimal(12, 3)
+
+  @@unique([tenantId, date])
+  @@index([tenantId, date])
+  @@map("daily_funnels")
+}
+
+model TenantMetricsDaily {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  date      DateTime @db.Date
+
+  logins          Int     @default(0)
+  apiCalls        Int     @default(0)
+  ordersReceived  Int     @default(0)
+  revenue         Decimal @default(0) @db.Decimal(12, 3)
+  productsCreated Int     @default(0)
+  isActive        Boolean @default(false)
+
+  @@unique([tenantId, date])
+  @@index([tenantId, date])
+  @@map("tenant_metrics_daily")
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  tenantId  String?
+  userId    String?           // marchand
+  adminId   String?           // super admin
+
+  action    String            // order.status_change, product.create, settings.update, etc.
+  entity    String            // Order, Product, Tenant, etc.
+  entityId  String?
+  before    Json?
+  after     Json?
+  ip        String?
+
+  createdAt DateTime @default(now())
+
+  tenant Tenant? @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, createdAt])
+  @@index([entity, entityId])
+  @@index([action, createdAt])
+  @@map("audit_logs")
+}
+
+// Code promo wallet — créé par super admin, utilisable par N marchands
+model CreditCode {
+  id        String    @id @default(cuid())
+  code      String    @unique
+  amount    Decimal   @db.Decimal(10, 3)
+  note      String?
+  isActive  Boolean   @default(true)
+  maxUses   Int       @default(1)   // 1 = single-use, 0 = illimité
+  usedCount Int       @default(0)
+  expiresAt DateTime?
+  createdAt DateTime  @default(now())
+
+  usages CreditCodeUsage[]
+
+  @@index([code])
+  @@map("credit_codes")
+}
+
+model CreditCodeUsage {
+  id           String   @id @default(cuid())
+  creditCodeId String
+  tenantId     String
+  amount       Decimal  @db.Decimal(10, 3)
+  usedAt       DateTime @default(now())
+
+  creditCode CreditCode @relation(fields: [creditCodeId], references: [id])
+  tenant     Tenant     @relation(fields: [tenantId], references: [id])
+
+  @@unique([creditCodeId, tenantId])
+  @@index([tenantId])
+  @@map("credit_code_usages")
+}
+
+// ─── PARRAINAGE ───────────────────────────────────────────────────────────────
+
+model ReferralReward {
+  id          String               @id @default(cuid())
+  referrerId  String               // Parrain
+  referredId  String               @unique // Filleul (1 récompense max par filleul)
+  amount      Decimal              @db.Decimal(10, 2)
+  status      ReferralRewardStatus @default(PENDING)
+  paidAt      DateTime?
+  createdAt   DateTime             @default(now())
+
+  referrer Tenant @relation("ReferralGiven",    fields: [referrerId], references: [id])
+  referred Tenant @relation("ReferralReceived", fields: [referredId],  references: [id])
+
+  @@index([referrerId])
+  @@map("referral_rewards")
+}
+
+enum ReferralRewardStatus {
+  PENDING
+  PAID
+  CANCELLED
+}

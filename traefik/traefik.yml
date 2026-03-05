@@ -1,0 +1,11 @@
+log:
+  level: INFO
+
+entryPoints:
+  web:
+    address: ":80"   # interne uniquement — cloudflared pointe ici
+
+providers:
+  docker:
+    exposedByDefault: false
+    network: shopforge_network

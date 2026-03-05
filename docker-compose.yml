@@ -1,0 +1,44 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: shopforge
+      POSTGRES_USER: shopforge
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"   # 5433 sur le host pour éviter conflit avec Postgres local
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U shopforge"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile.dev
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://shopforge:${DB_PASSWORD}@db:5432/shopforge
+    volumes:
+      - ./api:/app
+      - /app/node_modules
+      - uploads_data:/app/uploads
+    ports:
+      - "3001:3001"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # web et nginx désactivés en dev local
+  # lancer le web avec : cd web && npm run dev
+  # web et nginx sont utilisés uniquement en production (docker-compose.prod.yml)
+
+volumes:
+  postgres_data:
+  uploads_data:

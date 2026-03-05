@@ -1,0 +1,100 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Modal animations ──────────────────────────────────────────────────── */
+@keyframes modal-overlay-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes modal-dialog-in {
+  from { opacity: 0; transform: scale(0.95) translateY(8px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.modal-overlay {
+  animation: modal-overlay-in 150ms ease-out forwards;
+}
+
+.modal-dialog {
+  animation: modal-dialog-in 150ms ease-out forwards;
+}
+
+/* ── Cart badge bounce ─────────────────────────────────────────────────── */
+@keyframes cart-bounce {
+  0%   { transform: scale(1); }
+  35%  { transform: scale(1.45); }
+  65%  { transform: scale(0.9); }
+  100% { transform: scale(1); }
+}
+
+.cart-badge-bounce {
+  animation: cart-bounce 350ms cubic-bezier(0.36, 0.07, 0.19, 0.97);
+}
+
+/* ── RTL / Arabic support ─────────────────────────────────────────────── */
+[dir="rtl"] {
+  /* Use Arabic-friendly system fonts as fallback */
+  --font-arabic: 'Noto Sans Arabic', 'Segoe UI', 'Tahoma', 'Arial', sans-serif;
+}
+
+[dir="rtl"] * {
+  /* Flip text-align: left → right for RTL layouts */
+  text-align: inherit;
+}
+
+/* Flip common spacing utilities under RTL */
+[dir="rtl"] .ml-auto { margin-left: 0; margin-right: auto; }
+[dir="rtl"] .mr-auto { margin-right: 0; margin-left: auto; }
+
+/* Flip absolute badge positions (e.g. cart badge) */
+[dir="rtl"] .-right-0\.5 { right: auto; left: -0.125rem; }
+[dir="rtl"] .-top-0\.5.-right-0\.5 { right: auto; left: -0.125rem; }
+
+/* Flip translate-x for centered dropdowns */
+[dir="rtl"] .-translate-x-1\/2 { --tw-translate-x: 50%; }
+
+/* Flip chevron rotation direction */
+[dir="rtl"] .rotate-180 { transform: rotate(-180deg); }
+
+/* Ensure proper list bullet/marker position */
+[dir="rtl"] ul, [dir="rtl"] ol { padding-right: 1.5rem; padding-left: 0; }
+
+/* Flip border side utilities */
+[dir="rtl"] .border-l { border-left: 0; border-right: 1px solid; border-right-color: inherit; }
+[dir="rtl"] .border-r { border-right: 0; border-left: 1px solid; border-left-color: inherit; }
+
+/* Flip padding-left / padding-right for nav indentation */
+[dir="rtl"] .pl-4 { padding-left: 0; padding-right: 1rem; }
+
+/* Flip fixed-position widgets (chatbot, WhatsApp) */
+[dir="rtl"] .fixed.right-5 { right: auto; left: 1.25rem; }
+[dir="rtl"] .fixed.right-6 { right: auto; left: 1.5rem; }
+[dir="rtl"] .fixed.bottom-24.right-5 { right: auto; left: 1.25rem; }
+
+/* Flip product card badge positions */
+[dir="rtl"] .absolute.top-2.left-2 { left: auto; right: 0.5rem; }
+[dir="rtl"] .absolute.top-2.right-2 { right: auto; left: 0.5rem; }
+
+/* Flip gallery navigation arrows */
+[dir="rtl"] .absolute.left-3 { left: auto; right: 0.75rem; }
+
+/* Flip announcement bar close button */
+[dir="rtl"] .absolute.right-3.top-1\/2 { right: auto; left: 0.75rem; }
+
+/* Arabic font — slightly larger for readability */
+[dir="rtl"] body { font-size: 1.02em; line-height: 1.7; }
+
+/* ── Phone mockup scroll animation ───────────────────────────────────── */
+@keyframes phone-scroll {
+  0%   { transform: translateY(0); }
+  40%  { transform: translateY(-55%); }
+  50%  { transform: translateY(-55%); }
+  90%  { transform: translateY(0); }
+  100% { transform: translateY(0); }
+}
+
+.animate-phone-scroll {
+  animation: phone-scroll 12s ease-in-out infinite;
+}

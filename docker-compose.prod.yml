@@ -1,0 +1,125 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      POSTGRES_DB: shopforge
+      POSTGRES_USER: shopforge
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U shopforge"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "3"
+    networks:
+      - shopforge_network
+    # Pas de ports exposés — DB interne uniquement
+
+  traefik:
+    image: traefik:v3.0
+    restart: always
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+    networks:
+      - shopforge_network
+    # AUCUN port exposé sur l'hôte — trafic entrant via cloudflared uniquement
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    restart: always
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://shopforge:${DB_PASSWORD}@db:5432/shopforge
+      NODE_ENV: production
+      UPLOADS_DIR: /app/uploads
+    volumes:
+      - uploads_data:/app/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - shopforge_network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.api.rule=Host(`api.shopforge.tech`)"
+      - "traefik.http.routers.api.priority=10"
+      - "traefik.http.services.api.loadbalancer.server.port=3001"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+    # Pas de ports exposés — accessible via Traefik uniquement
+
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    restart: always
+    environment:
+      # URL publique (client browser → Cloudflare → API)
+      NEXT_PUBLIC_API_URL: https://api.shopforge.tech
+      # URL interne (server components → API directement dans Docker network)
+      INTERNAL_API_URL: http://api:3001
+      NODE_ENV: production
+    depends_on:
+      - api
+    networks:
+      - shopforge_network
+    labels:
+      - "traefik.enable=true"
+      # Catch-all : tout hostname qui n'est pas api.shopforge.tech
+      - "traefik.http.routers.web.rule=PathPrefix(`/`)"
+      - "traefik.http.routers.web.priority=1"
+      - "traefik.http.services.web.loadbalancer.server.port=3000"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+    # Pas de ports exposés — accessible via Traefik uniquement
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: always
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN}
+    depends_on:
+      - traefik
+    networks:
+      - shopforge_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    # Connexion SORTANTE uniquement vers Cloudflare — aucun port entrant requis
+    # CF Dashboard → Tunnels → Public Hostnames :
+    #   api.shopforge.tech  → http://traefik:80
+    #   *.shopforge.tech    → http://traefik:80
+    #   (custom domains ajoutés automatiquement via CloudflareService)
+
+volumes:
+  postgres_data:
+  uploads_data:
+
+networks:
+  shopforge_network:
+    driver: bridge
