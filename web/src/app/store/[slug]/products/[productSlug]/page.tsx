@@ -130,9 +130,9 @@ export default async function ProductPage({ params }: { params: { slug: string; 
     <div className="max-w-5xl mx-auto px-4 py-8">
       {/* Breadcrumb */}
       <nav className="flex items-center gap-2 text-xs text-gray-400 mb-6">
-        <Link href={`/store/${params.slug}`} className="hover:text-gray-600 transition-colors">Accueil</Link>
+        <Link href={`/`} className="hover:text-gray-600 transition-colors">Accueil</Link>
         <span>/</span>
-        <Link href={`/store/${params.slug}/products`} className="hover:text-gray-600 transition-colors">Produits</Link>
+        <Link href={`/products`} className="hover:text-gray-600 transition-colors">Produits</Link>
         {product.category && (
           <>
             <span>/</span>

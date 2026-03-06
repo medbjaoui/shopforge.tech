@@ -68,7 +68,7 @@ export default function AddToCartButton({ product, variants, outOfStock, storeSl
 
   const handleBuyNow = () => {
     if (!doAddToCart()) return;
-    router.push(`/store/${storeSlug}/checkout`);
+    router.push('/checkout');
   };
 
   return (

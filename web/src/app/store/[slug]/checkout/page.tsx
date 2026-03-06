@@ -382,11 +382,11 @@ export default function CheckoutPage({ params }: Props) {
           )}
 
           <div className="flex flex-col gap-3">
-            <button onClick={() => router.push(`/store/${params.slug}/track`)}
+            <button onClick={() => router.push(`/track`)}
               className={`w-full ${theme.btn} text-white py-3 rounded-xl font-semibold transition-colors`}>
               Suivre ma commande
             </button>
-            <button onClick={() => router.push(`/store/${params.slug}/products`)}
+            <button onClick={() => router.push(`/products`)}
               className="w-full border border-gray-200 text-gray-700 py-3 rounded-xl font-medium hover:bg-gray-50 transition-colors">
               Continuer mes achats
             </button>
@@ -417,7 +417,7 @@ export default function CheckoutPage({ params }: Props) {
       {items.length === 0 ? (
         <div className="text-center py-20">
           <p className="text-gray-400 mb-4">Votre panier est vide.</p>
-          <button onClick={() => router.push(`/store/${params.slug}/products`)} className="text-blue-600 font-medium hover:underline">
+          <button onClick={() => router.push(`/products`)} className="text-blue-600 font-medium hover:underline">
             Voir les produits →
           </button>
         </div>

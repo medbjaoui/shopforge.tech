@@ -18,7 +18,7 @@ export default function CustomerLoginPage({ params }: { params: { slug: string }
     setLoading(true);
     try {
       await login(params.slug, email, password);
-      router.push(`/store/${params.slug}/account`);
+      router.push(`/account`);
     } catch (err: any) {
       setError(err.message ?? 'Erreur de connexion.');
     } finally {
@@ -69,12 +69,12 @@ export default function CustomerLoginPage({ params }: { params: { slug: string }
 
         <p className="text-center text-sm text-gray-500 mt-6">
           Pas encore de compte ?{' '}
-          <Link href={`/store/${params.slug}/account/register`} className="text-gray-900 font-semibold hover:underline">
+          <Link href={`/account/register`} className="text-gray-900 font-semibold hover:underline">
             Créer un compte
           </Link>
         </p>
         <p className="text-center text-sm text-gray-400 mt-3">
-          <Link href={`/store/${params.slug}/track`} className="hover:text-gray-600 transition-colors">
+          <Link href={`/track`} className="hover:text-gray-600 transition-colors">
             Suivre une commande sans compte →
           </Link>
         </p>

@@ -119,7 +119,7 @@ export default function SearchModal({
               {results.map((product) => (
                 <Link
                   key={product.id}
-                  href={`/store/${slug}/products/${product.slug}`}
+                  href={`/products/${product.slug}`}
                   onClick={onClose}
                   className="flex items-center gap-3 px-5 py-3 hover:bg-gray-50 transition-colors"
                 >

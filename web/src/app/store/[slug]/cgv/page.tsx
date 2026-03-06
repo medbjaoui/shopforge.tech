@@ -29,7 +29,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
 export default async function CgvPage({ params }: { params: { slug: string } }) {
   const tenant = await getTenant(params.slug);
   const storeName = tenant?.legalName || tenant?.name || params.slug;
-  const base = `/store/${params.slug}`;
+  const base = `/`;
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-10 sm:py-14">

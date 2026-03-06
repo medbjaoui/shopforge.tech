@@ -140,7 +140,7 @@ export default async function ContactPage({ params }: { params: { slug: string }
         )}
 
         <div className="mt-8 pt-6 border-t border-gray-100 text-center">
-          <Link href={`/store/${params.slug}/track`} className={`text-sm ${tu.linkColor} hover:underline`}>
+          <Link href={`/track`} className={`text-sm ${tu.linkColor} hover:underline`}>
             Suivre une commande →
           </Link>
         </div>

@@ -20,7 +20,7 @@ export default function CustomerRegisterPage({ params }: { params: { slug: strin
     setLoading(true);
     try {
       await register(params.slug, form);
-      router.push(`/store/${params.slug}/account`);
+      router.push(`/account`);
     } catch (err: any) {
       setError(err.message ?? 'Erreur lors de la création du compte.');
     } finally {
@@ -87,7 +87,7 @@ export default function CustomerRegisterPage({ params }: { params: { slug: strin
 
         <p className="text-center text-sm text-gray-500 mt-6">
           Déjà un compte ?{' '}
-          <Link href={`/store/${params.slug}/account/login`} className="text-gray-900 font-semibold hover:underline">
+          <Link href={`/account/login`} className="text-gray-900 font-semibold hover:underline">
             Se connecter
           </Link>
         </p>

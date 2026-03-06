@@ -39,7 +39,7 @@ export default function AccountPage({ params }: { params: { slug: string } }) {
   // Redirect if not logged in
   useEffect(() => {
     if (!isLoading && !isLoggedIn) {
-      router.replace(`/store/${params.slug}/account/login`);
+      router.replace(`/account/login`);
     }
   }, [isLoading, isLoggedIn, params.slug, router]);
 
@@ -63,7 +63,7 @@ export default function AccountPage({ params }: { params: { slug: string } }) {
 
   const handleLogout = () => {
     logout(params.slug);
-    router.push(`/store/${params.slug}`);
+    router.push(`/`);
   };
 
   return (
@@ -128,7 +128,7 @@ export default function AccountPage({ params }: { params: { slug: string } }) {
             <div className="text-center py-16">
               <p className="text-4xl mb-3">📦</p>
               <p className="text-gray-500 font-medium">Aucune commande pour le moment.</p>
-              <Link href={`/store/${params.slug}/products`}
+              <Link href={`/products`}
                 className="inline-block mt-4 bg-gray-900 text-white text-sm font-semibold px-5 py-2.5 rounded-xl hover:bg-gray-700 transition-colors">
                 Voir les produits →
               </Link>
@@ -163,7 +163,7 @@ export default function AccountPage({ params }: { params: { slug: string } }) {
                       <span className="font-bold text-gray-900">{Number(order.totalAmount).toFixed(2)} TND</span>
                       <div className="flex items-center gap-3 text-xs text-gray-400">
                         {order.shipment?.trackingNumber && (
-                          <Link href={`/store/${params.slug}/track?n=${order.shipment.trackingNumber}`}
+                          <Link href={`/track?n=${order.shipment.trackingNumber}`}
                             className="text-blue-500 hover:underline font-medium">
                             Suivre →
                           </Link>

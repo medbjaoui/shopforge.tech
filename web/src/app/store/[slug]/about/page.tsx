@@ -87,7 +87,7 @@ export default async function AboutPage({ params }: { params: { slug: string } }
         )}
 
         <div className="pt-4 text-center">
-          <Link href={`/store/${params.slug}/products`}
+          <Link href={`/products`}
             className={`inline-block ${theme.btn} text-white px-6 py-3 rounded-xl font-semibold transition-colors`}>
             Voir nos produits →
           </Link>

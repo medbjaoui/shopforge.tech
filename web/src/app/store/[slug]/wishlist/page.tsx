@@ -35,7 +35,7 @@ export default function WishlistPage() {
     <div className="max-w-4xl mx-auto px-4 py-8">
       {/* Breadcrumb */}
       <nav className="flex items-center gap-2 text-xs text-gray-400 mb-6">
-        <Link href={`/store/${slug}`} className="hover:text-gray-600 transition-colors">Accueil</Link>
+        <Link href={`/`} className="hover:text-gray-600 transition-colors">Accueil</Link>
         <span>/</span>
         <span className="text-gray-700 font-medium">Mes favoris</span>
       </nav>
@@ -60,7 +60,7 @@ export default function WishlistPage() {
             </svg>
           </div>
           <p className="text-gray-400 text-sm mb-4">Votre liste de favoris est vide.</p>
-          <Link href={`/store/${slug}/products`}
+          <Link href={`/products`}
             className={`inline-block px-6 py-2.5 ${theme.btn} text-white text-sm font-medium rounded-lg transition-colors`}>
             Découvrir nos produits
           </Link>
@@ -70,7 +70,7 @@ export default function WishlistPage() {
           {items.map((item) => (
             <div key={item.productId} className="flex items-center gap-4 bg-white border border-gray-100 rounded-xl p-4 hover:shadow-sm transition-shadow">
               {/* Image */}
-              <Link href={`/store/${slug}/products/${item.slug}`} className="shrink-0">
+              <Link href={`/products/${item.slug}`} className="shrink-0">
                 <div className="w-20 h-20 rounded-lg bg-gray-50 overflow-hidden flex items-center justify-center">
                   {item.image ? (
                     <Image src={imageUrl(item.image)} alt={item.name} width={80} height={80} className="w-full h-full object-cover" />
@@ -82,7 +82,7 @@ export default function WishlistPage() {
 
               {/* Info */}
               <div className="flex-1 min-w-0">
-                <Link href={`/store/${slug}/products/${item.slug}`}
+                <Link href={`/products/${item.slug}`}
                   className={`text-sm font-semibold text-gray-900 ${tu.linkHover} transition-colors line-clamp-1`}>
                   {item.name}
                 </Link>

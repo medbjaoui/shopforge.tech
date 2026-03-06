@@ -286,6 +286,36 @@ export class ShippingService {
     return shipment;
   }
 
+  async updateShipmentStatus(
+    shipmentId: string,
+    tenantId: string,
+    status: ShipmentStatus,
+    trackingNumber?: string,
+  ) {
+    const shipment = await this.prisma.shipment.findFirst({
+      where: { id: shipmentId, tenantId },
+    });
+    if (!shipment) throw new NotFoundException('Expédition introuvable');
+
+    const updated = await this.prisma.shipment.update({
+      where: { id: shipmentId },
+      data: {
+        status,
+        ...(trackingNumber ? { trackingNumber } : {}),
+      },
+    });
+
+    // Si livré, passer la commande en DELIVERED
+    if (status === ShipmentStatus.DELIVERED) {
+      await this.prisma.order.update({
+        where: { id: shipment.orderId },
+        data: { status: OrderStatus.DELIVERED },
+      });
+    }
+
+    return updated;
+  }
+
   async syncShipment(shipmentId: string, tenantId: string) {
     const shipment = await this.prisma.shipment.findFirst({
       where: { id: shipmentId, tenantId },

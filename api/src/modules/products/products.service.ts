@@ -115,6 +115,16 @@ export class ProductsService {
       include: PRODUCT_INCLUDE,
     });
 
+    // Créer un mouvement de stock initial si le stock > 0
+    if (dto.stock && dto.stock > 0) {
+      await this.inventoryService.recordMovement(tenantId, {
+        productId: product.id,
+        type: StockMovementType.INITIAL,
+        quantity: dto.stock,
+        reason: 'Stock initial lors de la création du produit',
+      });
+    }
+
     // Auto-publier la boutique au 1er produit ajouté
     if (!tenant.isPublished) {
       const productCount = await this.prisma.product.count({ where: { tenantId } });
