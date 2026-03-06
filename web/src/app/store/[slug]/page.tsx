@@ -131,7 +131,7 @@ export default async function StorePage({ params }: { params: { slug: string } }
           </div>
 
           <Link
-            href={`/store/${params.slug}/products`}
+            href="/products"
             className="inline-block bg-white/20 hover:bg-white/30 text-white font-semibold px-5 py-2.5 sm:px-8 sm:py-3 rounded-xl transition-colors border border-white/30 text-sm sm:text-base"
           >
             {tenant?.heroCta || 'Voir tous les produits'} →
@@ -158,7 +158,7 @@ export default async function StorePage({ params }: { params: { slug: string } }
             <div className="flex items-center justify-between mb-5 sm:mb-6">
               <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Nos produits</h2>
               {products.length > 8 && (
-                <Link href={`/store/${params.slug}/products`} className={`text-sm ${tu.linkColor} hover:underline`}>
+                <Link href="/products" className={`text-sm ${tu.linkColor} hover:underline`}>
                   Voir tout ({products.length}) →
                 </Link>
               )}

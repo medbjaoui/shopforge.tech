@@ -51,7 +51,6 @@ export default function StoreHeader({ tenant, theme }: { tenant: Tenant; theme?:
     }
     prevCount.current = count;
   }, [count]);
-  const base = `/store/${tenant.slug}`;
 
   // Fetch categories
   useEffect(() => {
@@ -77,7 +76,7 @@ export default function StoreHeader({ tenant, theme }: { tenant: Tenant; theme?:
   // Close menu on route change
   useEffect(() => {
     setMenuOpen(false);
-  }, [base]);
+  }, []);
 
   // Close menu on ESC
   useEffect(() => {
@@ -95,11 +94,11 @@ export default function StoreHeader({ tenant, theme }: { tenant: Tenant; theme?:
 
   const lang = tenant.storeLanguage;
   const navLinks = [
-    { href: base, label: t(lang, 'home') },
-    { href: `${base}/products`, label: t(lang, 'products') },
-    { href: `${base}/track`, label: t(lang, 'trackOrder') },
-    { href: `${base}/about`, label: t(lang, 'about') },
-    { href: `${base}/contact`, label: t(lang, 'contact') },
+    { href: '/', label: t(lang, 'home') },
+    { href: '/products', label: t(lang, 'products') },
+    { href: '/track', label: t(lang, 'trackOrder') },
+    { href: '/about', label: t(lang, 'about') },
+    { href: '/contact', label: t(lang, 'contact') },
   ];
 
   return (
@@ -107,7 +106,7 @@ export default function StoreHeader({ tenant, theme }: { tenant: Tenant; theme?:
       <header className={`${bg} border-b ${border} sticky top-0 z-40`}>
         <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between gap-4">
           {/* Logo */}
-          <Link href={base} className={`font-bold text-xl ${text} hover:opacity-80 transition-opacity shrink-0`}>
+          <Link href="/" className={`font-bold text-xl ${text} hover:opacity-80 transition-opacity shrink-0`}>
             {tenant.name}
           </Link>
 
@@ -135,7 +134,7 @@ export default function StoreHeader({ tenant, theme }: { tenant: Tenant; theme?:
                         {categories.map((cat) => (
                           <Link
                             key={cat.id}
-                            href={`${base}/products?category=${cat.slug || cat.name}`}
+                            href={`/products?category=${cat.slug || cat.name}`}
                             className="text-sm text-gray-600 hover:text-gray-900 py-1.5 transition-colors"
                             onClick={() => setCatOpen(false)}
                           >
@@ -145,7 +144,7 @@ export default function StoreHeader({ tenant, theme }: { tenant: Tenant; theme?:
                       </div>
                       <div className="border-t border-gray-100 mt-3 pt-3">
                         <Link
-                          href={`${base}/products`}
+                          href="/products"
                           className="text-sm text-orange-500 hover:text-orange-600 font-medium"
                           onClick={() => setCatOpen(false)}
                         >
@@ -163,7 +162,7 @@ export default function StoreHeader({ tenant, theme }: { tenant: Tenant; theme?:
           <div className="flex items-center gap-2">
             {/* Account button */}
             <Link
-              href={isLoggedIn ? `${base}/account` : `${base}/account/login`}
+              href={isLoggedIn ? '/account' : '/account/login'}
               className={`hidden sm:flex items-center gap-1.5 p-2 rounded-lg transition-colors text-sm ${
                 dark ? 'text-white/80 hover:bg-white/10' : 'text-gray-600 hover:bg-gray-100'
               }`}
@@ -195,7 +194,7 @@ export default function StoreHeader({ tenant, theme }: { tenant: Tenant; theme?:
 
             {/* Wishlist button */}
             <Link
-              href={`${base}/wishlist`}
+              href="/wishlist"
               className={`relative p-2 rounded-lg transition-colors ${
                 dark ? 'text-white/80 hover:bg-white/10' : 'text-gray-600 hover:bg-gray-100'
               }`}
@@ -213,7 +212,7 @@ export default function StoreHeader({ tenant, theme }: { tenant: Tenant; theme?:
 
             {/* Cart button */}
             <Link
-              href={`${base}/checkout`}
+              href="/checkout"
               className={`relative flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                 dark
                   ? 'bg-white/20 hover:bg-white/30 text-white'
@@ -277,7 +276,7 @@ export default function StoreHeader({ tenant, theme }: { tenant: Tenant; theme?:
                     {categories.map((cat) => (
                       <Link
                         key={cat.id}
-                        href={`${base}/products?category=${cat.slug || cat.name}`}
+                        href={`/products?category=${cat.slug || cat.name}`}
                         onClick={() => setMenuOpen(false)}
                         className={`block px-4 py-2 text-sm rounded-lg transition-colors ${dark ? 'text-white/70 hover:bg-white/10' : 'text-gray-600 hover:bg-gray-50'}`}
                       >
@@ -290,14 +289,14 @@ export default function StoreHeader({ tenant, theme }: { tenant: Tenant; theme?:
             )}
             <div className={`border-t ${border} pt-3 mt-3 space-y-1`}>
               <Link
-                href={isLoggedIn ? `${base}/account` : `${base}/account/login`}
+                href={isLoggedIn ? '/account' : '/account/login'}
                 onClick={() => setMenuOpen(false)}
                 className={mobileNavLinkClass}
               >
                 {isLoggedIn ? `👤 ${customer?.firstName} — ${t(lang, 'myAccount')}` : `👤 ${t(lang, 'login')}`}
               </Link>
               <Link
-                href={`${base}/checkout`}
+                href="/checkout"
                 onClick={() => setMenuOpen(false)}
                 className={`flex items-center justify-between px-4 py-3 rounded-lg font-semibold transition-colors ${
                   dark ? 'bg-white/20 text-white hover:bg-white/30' : 'bg-gray-900 text-white hover:bg-gray-700'

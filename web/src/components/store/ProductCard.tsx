@@ -42,7 +42,7 @@ export default function ProductCard({
   };
 
   return (
-    <Link href={`/store/${storeSlug}/products/${product.slug}`}>
+    <Link href={`/products/${product.slug}`}>
       <div className="group bg-white border border-gray-100 rounded-2xl overflow-hidden hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 cursor-pointer">
         {/* Image */}
         <div className="aspect-square bg-gray-50 flex items-center justify-center relative overflow-hidden">

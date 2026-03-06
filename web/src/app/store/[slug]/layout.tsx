@@ -82,7 +82,6 @@ export default async function StoreLayout({
   const theme = getTheme(tenant.theme);
   const tu = getThemeUtils(theme);
   const storeFont = getFont(tenant.font);
-  const base = `/store/${tenant.slug}`;
   const logoUrl = tenant.logo
     ? (tenant.logo.startsWith('http') ? tenant.logo : `${API_URL}${tenant.logo}`)
     : null;
@@ -136,13 +135,13 @@ export default async function StoreLayout({
             <div>
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">{t(tenant.storeLanguage, 'shop')}</p>
               <ul className="space-y-2 text-sm">
-                <li><a href={`${base}/products`} className="hover:text-white transition-colors">{t(tenant.storeLanguage, 'allProducts')}</a></li>
-                <li><a href={`${base}/track`} className="hover:text-white transition-colors">{t(tenant.storeLanguage, 'trackMyOrder')}</a></li>
-                <li><a href={`${base}/about`} className="hover:text-white transition-colors">{t(tenant.storeLanguage, 'about')}</a></li>
-                <li><a href={`${base}/contact`} className="hover:text-white transition-colors">{t(tenant.storeLanguage, 'contact')}</a></li>
-                <li><a href={`${base}/policies`} className="hover:text-white transition-colors">{t(tenant.storeLanguage, 'returnPolicy')}</a></li>
-                <li><a href={`${base}/cgv`} className="hover:text-white transition-colors">{t(tenant.storeLanguage, 'cgv')}</a></li>
-                <li><a href={`${base}/privacy`} className="hover:text-white transition-colors">{t(tenant.storeLanguage, 'privacy')}</a></li>
+                <li><a href="/products" className="hover:text-white transition-colors">{t(tenant.storeLanguage, 'allProducts')}</a></li>
+                <li><a href="/track" className="hover:text-white transition-colors">{t(tenant.storeLanguage, 'trackMyOrder')}</a></li>
+                <li><a href="/about" className="hover:text-white transition-colors">{t(tenant.storeLanguage, 'about')}</a></li>
+                <li><a href="/contact" className="hover:text-white transition-colors">{t(tenant.storeLanguage, 'contact')}</a></li>
+                <li><a href="/policies" className="hover:text-white transition-colors">{t(tenant.storeLanguage, 'returnPolicy')}</a></li>
+                <li><a href="/cgv" className="hover:text-white transition-colors">{t(tenant.storeLanguage, 'cgv')}</a></li>
+                <li><a href="/privacy" className="hover:text-white transition-colors">{t(tenant.storeLanguage, 'privacy')}</a></li>
               </ul>
             </div>
 
