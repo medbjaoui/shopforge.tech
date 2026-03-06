@@ -6,12 +6,14 @@ import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { CreateVariantDto } from './dto/create-variant.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../../common/guards/roles.guard';
 import { CurrentTenant } from '../../common/decorators/current-tenant.decorator';
 import { Public } from '../../common/decorators/public.decorator';
-import { Tenant } from '@prisma/client';
+import { Roles } from '../../common/decorators/roles.decorator';
+import { Tenant, UserRole } from '@prisma/client';
 
 @Controller('products')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class ProductsController {
   constructor(private productsService: ProductsService) {}
 
@@ -37,6 +39,8 @@ export class ProductsController {
 
   // ── Dashboard marchand ────────────────────────────────────────────────────
 
+  // Tous les rôles peuvent voir les produits
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.STAFF)
   @Get()
   findAll(
     @CurrentTenant() tenant: Tenant,
@@ -47,6 +51,8 @@ export class ProductsController {
     return this.productsService.findAll(tenant.id, +(page || 1), +(limit || 20), search);
   }
 
+  // OWNER + ADMIN peuvent exporter
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
   @Get('export/csv')
   async exportCsv(@CurrentTenant() tenant: Tenant, @Res() res: Response) {
     const csv = await this.productsService.exportCsv(tenant.id);
@@ -54,6 +60,8 @@ export class ProductsController {
     res.send('\uFEFF' + csv);
   }
 
+  // OWNER + ADMIN peuvent faire des actions en masse
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
   @Patch('bulk')
   bulkAction(
     @Body() body: { ids: string[]; action: 'delete' | 'activate' | 'deactivate' },
@@ -62,6 +70,8 @@ export class ProductsController {
     return this.productsService.bulkAction(tenant.id, body.ids, body.action);
   }
 
+  // OWNER + ADMIN peuvent importer
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
   @Post('import')
   @Throttle({ default: { limit: 3, ttl: 3600000 } })
   @UseInterceptors(FileInterceptor('file'))
@@ -70,16 +80,22 @@ export class ProductsController {
     return this.productsService.importCsv(tenant.id, content);
   }
 
+  // Tous les rôles peuvent voir un produit
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.STAFF)
   @Get(':id')
   findOne(@Param('id') id: string, @CurrentTenant() tenant: Tenant) {
     return this.productsService.findOne(id, tenant.id);
   }
 
+  // OWNER + ADMIN peuvent créer des produits
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
   @Post()
   create(@Body() dto: CreateProductDto, @CurrentTenant() tenant: Tenant) {
     return this.productsService.create(tenant.id, dto);
   }
 
+  // OWNER + ADMIN peuvent modifier des produits
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
   @Patch(':id')
   update(
     @Param('id') id: string,
@@ -89,6 +105,8 @@ export class ProductsController {
     return this.productsService.update(id, tenant.id, dto);
   }
 
+  // OWNER + ADMIN peuvent supprimer des produits
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
   @Delete(':id')
   remove(@Param('id') id: string, @CurrentTenant() tenant: Tenant) {
     return this.productsService.remove(id, tenant.id);
@@ -96,6 +114,8 @@ export class ProductsController {
 
   // ── Variants ──────────────────────────────────────────────────────────────
 
+  // OWNER + ADMIN peuvent créer des variants
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
   @Post(':id/variants')
   createVariant(
     @Param('id') productId: string,
@@ -105,6 +125,8 @@ export class ProductsController {
     return this.productsService.createVariant(productId, tenant.id, dto);
   }
 
+  // OWNER + ADMIN peuvent modifier des variants
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
   @Patch(':id/variants/:variantId')
   updateVariant(
     @Param('id') productId: string,
@@ -115,6 +137,8 @@ export class ProductsController {
     return this.productsService.updateVariant(variantId, productId, tenant.id, dto);
   }
 
+  // OWNER + ADMIN peuvent supprimer des variants
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
   @Delete(':id/variants/:variantId')
   removeVariant(
     @Param('id') productId: string,

@@ -34,15 +34,18 @@ const navGroups: NavGroup[] = [
     label: 'Ventes',
     items: [
       { href: '/dashboard/orders', label: 'Commandes', icon: '◎' },
+      { href: '/dashboard/logistics', label: 'Logistique', icon: '📦' },
       { href: '/dashboard/shipping', label: 'Livraison', icon: '🚚' },
       { href: '/dashboard/invoices', label: 'Factures', icon: '🧾' },
       { href: '/dashboard/customers', label: 'Clients', icon: '◉' },
+      { href: '/dashboard/loyalty', label: 'Fidélité', icon: '🎁' },
     ],
   },
   {
     label: 'Gestion',
     items: [
       { href: '/dashboard/analytics', label: 'Analytiques', icon: '▲' },
+      { href: '/dashboard/team', label: 'Équipe', icon: '👥' },
       { href: '/dashboard/wallet', label: 'Mon Wallet', icon: '◈' },
       { href: '/dashboard/parrainage', label: 'Parrainage', icon: '🤝' },
       { href: '/dashboard/billing', label: 'Abonnement', icon: '◆' },

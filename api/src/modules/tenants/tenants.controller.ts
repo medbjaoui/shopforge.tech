@@ -1,9 +1,11 @@
 import { Controller, Get, Post, Patch, Delete, Body, Param, UseGuards } from '@nestjs/common';
 import { TenantsService } from './tenants.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../../common/guards/roles.guard';
 import { CurrentTenant } from '../../common/decorators/current-tenant.decorator';
 import { Public } from '../../common/decorators/public.decorator';
-import { Tenant } from '@prisma/client';
+import { Roles } from '../../common/decorators/roles.decorator';
+import { Tenant, UserRole } from '@prisma/client';
 
 @Controller('tenants')
 export class TenantsController {
@@ -23,25 +25,33 @@ export class TenantsController {
     return this.tenantsService.findByDomain(domain);
   }
 
-  @UseGuards(JwtAuthGuard)
+  // Tous les rôles peuvent voir les infos tenant
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.STAFF)
   @Get('me')
   getMe(@CurrentTenant() tenant: Tenant) {
     return this.tenantsService.getMe(tenant.id);
   }
 
-  @UseGuards(JwtAuthGuard)
+  // OWNER et ADMIN peuvent voir l'usage
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
   @Get('me/usage')
   getUsage(@CurrentTenant() tenant: Tenant) {
     return this.tenantsService.getUsage(tenant.id);
   }
 
-  @UseGuards(JwtAuthGuard)
+  // Seulement OWNER peut voir le parrainage
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.OWNER)
   @Get('me/referral')
   getMyReferral(@CurrentTenant() tenant: Tenant) {
     return this.tenantsService.getMyReferral(tenant.id);
   }
 
-  @UseGuards(JwtAuthGuard)
+  // Seulement OWNER peut compléter l'onboarding
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.OWNER)
   @Post('me/onboarding')
   completeOnboarding(
     @CurrentTenant() tenant: Tenant,
@@ -50,7 +60,9 @@ export class TenantsController {
     return this.tenantsService.completeOnboarding(tenant.id, body);
   }
 
-  @UseGuards(JwtAuthGuard)
+  // Seulement OWNER peut modifier les paramètres boutique
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.OWNER)
   @Patch('me')
   update(
     @CurrentTenant() tenant: Tenant,
@@ -74,13 +86,17 @@ export class TenantsController {
     return this.tenantsService.update(tenant.id, body);
   }
 
-  @UseGuards(JwtAuthGuard)
+  // Seulement OWNER peut configurer Telegram
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.OWNER)
   @Post('me/telegram-link-code')
   generateTelegramLinkCode(@CurrentTenant() tenant: Tenant) {
     return this.tenantsService.generateTelegramLinkCode(tenant.id);
   }
 
-  @UseGuards(JwtAuthGuard)
+  // Seulement OWNER peut déconnecter Telegram
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.OWNER)
   @Delete('me/telegram')
   disconnectTelegram(@CurrentTenant() tenant: Tenant) {
     return this.tenantsService.disconnectTelegram(tenant.id);

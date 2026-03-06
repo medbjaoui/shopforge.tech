@@ -4,7 +4,10 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { EmailService } from '../email/email.service';
 import { PlatformConfigService } from '../platform-config/platform-config.service';
 import { AnalyticsService } from '../analytics/analytics.service';
-import { getDynamicPlanLimits, isUnlimited } from '../../common/billing/plan-limits';
+import { PlatformRevenueService } from '../platform-revenue/platform-revenue.service';
+import { WalletService } from '../wallet/wallet.service';
+import { getDynamicPlanLimits, isUnlimited, PLAN_LIMITS } from '../../common/billing/plan-limits';
+import { PlanType, WalletTxType } from '@prisma/client';
 
 @Injectable()
 export class SchedulerService {
@@ -15,6 +18,8 @@ export class SchedulerService {
     private emailService: EmailService,
     private config: PlatformConfigService,
     private analyticsService: AnalyticsService,
+    private platformRevenue: PlatformRevenueService,
+    private walletService: WalletService,
   ) {}
 
   /**
@@ -360,5 +365,132 @@ export class SchedulerService {
     }
 
     this.logger.log('Cron: churnAndCleanup done');
+  }
+
+  /**
+   * Job 7 — Facturation mensuelle des plans (1er de chaque mois à 1h)
+   * Facture les plans STARTER (29 TND) et PRO (79 TND)
+   */
+  @Cron('0 1 1 * *', { name: 'monthly-plan-billing' })
+  async chargeMonthlyPlanFees(): Promise<void> {
+    this.logger.log('Cron: chargeMonthlyPlanFees start');
+
+    const now = new Date();
+    const period = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+    // Récupérer tous les tenants actifs avec plan payant
+    const tenants = await this.prisma.tenant.findMany({
+      where: {
+        isActive: true,
+        plan: { in: [PlanType.STARTER, PlanType.PRO] },
+      },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        plan: true,
+        users: {
+          where: { role: 'OWNER' },
+          select: { email: true, firstName: true },
+          take: 1,
+        },
+        contactEmail: true,
+      },
+    });
+
+    let successCount = 0;
+    let failedCount = 0;
+
+    for (const tenant of tenants) {
+      try {
+        const planPrice = PLAN_LIMITS[tenant.plan].priceMonthly;
+
+        if (planPrice <= 0) {
+          this.logger.warn(`Plan ${tenant.plan} has no monthly fee`);
+          continue;
+        }
+
+        // Vérifier si déjà facturé ce mois
+        const existingCharge = await this.platformRevenue['prisma'].platformRevenue.findFirst({
+          where: {
+            tenantId: tenant.id,
+            type: 'SUBSCRIPTION',
+            period,
+          },
+        });
+
+        if (existingCharge) {
+          this.logger.log(`Tenant ${tenant.slug} already charged for ${period}`);
+          continue;
+        }
+
+        // Récupérer le wallet
+        const wallet = await this.walletService.getOrCreateWallet(tenant.id);
+        const balance = Number(wallet.balance);
+
+        // Vérifier solde suffisant
+        if (balance < planPrice) {
+          this.logger.warn(`Tenant ${tenant.slug} insufficient balance: ${balance} TND < ${planPrice} TND`);
+
+          // Envoyer email d'alerte
+          const ownerEmail = tenant.contactEmail ?? tenant.users[0]?.email;
+          if (ownerEmail) {
+            await this.emailService['transporter']?.sendMail({
+              to: ownerEmail,
+              subject: `⚠️ Solde insuffisant pour votre abonnement ShopForge`,
+              html: `
+                <h2>Solde wallet insuffisant</h2>
+                <p>Bonjour ${tenant.users[0]?.firstName ?? 'Marchand'},</p>
+                <p>Votre solde wallet (<strong>${balance.toFixed(3)} TND</strong>) est insuffisant pour payer votre abonnement ${tenant.plan} (<strong>${planPrice} TND/mois</strong>).</p>
+                <p>Veuillez recharger votre wallet pour éviter la suspension de votre compte.</p>
+                <p><strong>Contact :</strong> contact@shopforge.tech</p>
+              `,
+            }).catch(() => {});
+          }
+
+          failedCount++;
+          continue;
+        }
+
+        // Déduire du wallet
+        const before = balance;
+        const after = balance - planPrice;
+
+        await this.prisma.$transaction([
+          this.prisma.tenantWallet.update({
+            where: { id: wallet.id },
+            data: { balance: { decrement: planPrice } },
+          }),
+          this.prisma.walletTransaction.create({
+            data: {
+              walletId: wallet.id,
+              type: WalletTxType.ADJUSTMENT,
+              amount: planPrice,
+              balanceBefore: before,
+              balanceAfter: after,
+              description: `Abonnement ${tenant.plan} — ${period}`,
+              reference: period,
+            },
+          }),
+        ]);
+
+        // Enregistrer revenu plateforme
+        await this.platformRevenue.recordSubscription(
+          tenant.id,
+          planPrice,
+          tenant.plan,
+          period,
+        );
+
+        this.logger.log(`Tenant ${tenant.slug} charged ${planPrice} TND for ${period}`);
+        successCount++;
+
+      } catch (err) {
+        this.logger.error(`Failed to charge tenant ${tenant.slug}: ${err}`);
+        failedCount++;
+      }
+    }
+
+    this.logger.log(`Cron: chargeMonthlyPlanFees done — ${successCount} success, ${failedCount} failed`);
   }
 }

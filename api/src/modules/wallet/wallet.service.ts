@@ -1,7 +1,8 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PlatformConfigService } from '../platform-config/platform-config.service';
-import { getDynamicCommissionRate } from '../../common/billing/plan-limits';
+import { PlatformRevenueService } from '../platform-revenue/platform-revenue.service';
+import { getDynamicCommissionRate, calculateHybridCommission, getHybridCommissionConfig } from '../../common/billing/plan-limits';
 import { PlanType, WalletTxType, CommissionStatus } from '@prisma/client';
 
 @Injectable()
@@ -9,6 +10,7 @@ export class WalletService {
   constructor(
     private prisma: PrismaService,
     private platformConfig: PlatformConfigService,
+    private platformRevenue: PlatformRevenueService,
   ) {}
 
   /** Crée le wallet si inexistant, retourne le wallet existant sinon */
@@ -93,8 +95,36 @@ export class WalletService {
 
   /** Déduit la commission sur une commande DELIVERED */
   async deductCommission(tenantId: string, orderId: string, orderAmount: number, plan: PlanType) {
-    const rate = getDynamicCommissionRate(plan, this.platformConfig);
-    const commissionAmount = Math.round(orderAmount * rate * 1000) / 1000; // 3 décimales
+    // Vérifier si le tenant est dans son premier mois gratuit
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: {
+        firstMonthCommissionFree: true,
+        firstMonthEndsAt: true,
+        createdAt: true,
+      },
+    });
+
+    // Si le tenant est dans son premier mois (30 jours depuis inscription), pas de commission
+    if (tenant?.firstMonthCommissionFree) {
+      const now = new Date();
+      const firstMonthEnd = tenant.firstMonthEndsAt ?? new Date(tenant.createdAt.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+      if (now < firstMonthEnd) {
+        // Toujours dans le premier mois → pas de commission
+        return;
+      } else {
+        // Premier mois terminé → désactiver le flag
+        await this.prisma.tenant.update({
+          where: { id: tenantId },
+          data: { firstMonthCommissionFree: false },
+        });
+      }
+    }
+
+    // Utiliser le nouveau modèle hybride: MAX(fixedFee, orderAmount × percentage)
+    const commissionAmount = calculateHybridCommission(orderAmount, plan, this.platformConfig);
+    const commissionConfig = getHybridCommissionConfig(plan, this.platformConfig);
 
     if (commissionAmount <= 0) return; // plan sans commission (ex: SCALE futur)
 
@@ -105,6 +135,13 @@ export class WalletService {
     const wallet = await this.getOrCreateWallet(tenantId);
     const before = Number(wallet.balance);
     const after = before - commissionAmount;
+
+    // Déterminer quelle formule a été utilisée
+    const percentageFee = orderAmount * (commissionConfig.percentage / 100);
+    const isFixedUsed = commissionAmount === commissionConfig.fixedFee;
+    const description = isFixedUsed
+      ? `Commission ${commissionConfig.fixedFee} TND (fixe) — Commande #${orderId.slice(-8).toUpperCase()}`
+      : `Commission ${commissionConfig.percentage}% (${commissionAmount.toFixed(3)} TND) — Commande #${orderId.slice(-8).toUpperCase()}`;
 
     await this.prisma.$transaction([
       this.prisma.tenantWallet.update({
@@ -121,7 +158,7 @@ export class WalletService {
           amount: commissionAmount,
           balanceBefore: before,
           balanceAfter: after,
-          description: `Commission ${(rate * 100).toFixed(1)}% — Commande #${orderId.slice(-8).toUpperCase()}`,
+          description,
           reference: orderId,
         },
       }),
@@ -131,12 +168,15 @@ export class WalletService {
           walletId: wallet.id,
           orderId,
           orderAmount,
-          commissionRate: rate,
+          commissionRate: commissionConfig.percentage / 100, // Stocker le % utilisé
           commissionAmount,
           status: CommissionStatus.COLLECTED,
         },
       }),
     ]);
+
+    // Enregistrer comme revenu plateforme (CA)
+    await this.platformRevenue.recordCommission(tenantId, orderId, commissionAmount, plan);
   }
 
   /** Rembourse la commission si commande retournée */
@@ -173,6 +213,9 @@ export class WalletService {
         data: { status: CommissionStatus.REFUNDED },
       }),
     ]);
+
+    // Supprimer le revenu plateforme (CA)
+    await this.platformRevenue.refundCommission(orderId);
   }
 
   /** Vérifie si le wallet a suffisamment de solde pour accepter des commandes */

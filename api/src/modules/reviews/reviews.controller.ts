@@ -1,8 +1,10 @@
 import { Controller, Get, Post, Patch, Delete, Param, Body, Query, Req, UseGuards } from '@nestjs/common';
-import { Tenant } from '@prisma/client';
+import { Tenant, UserRole } from '@prisma/client';
 import { ReviewsService } from './reviews.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../../common/guards/roles.guard';
 import { CurrentTenant } from '../../common/decorators/current-tenant.decorator';
+import { Roles } from '../../common/decorators/roles.decorator';
 
 @Controller('reviews')
 export class ReviewsController {
@@ -25,7 +27,8 @@ export class ReviewsController {
   }
 
   /** GET /reviews — dashboard, all reviews for moderation */
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
   @Get()
   findAll(
     @CurrentTenant() tenant: Tenant,
@@ -37,7 +40,8 @@ export class ReviewsController {
   }
 
   /** PATCH /reviews/:id/status — approve or reject */
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
   @Patch(':id/status')
   updateStatus(
     @CurrentTenant() tenant: Tenant,
@@ -48,7 +52,8 @@ export class ReviewsController {
   }
 
   /** DELETE /reviews/:id */
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
   @Delete(':id')
   remove(@CurrentTenant() tenant: Tenant, @Param('id') id: string) {
     return this.reviewsService.remove(id, tenant.id);

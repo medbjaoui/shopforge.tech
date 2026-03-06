@@ -2,10 +2,12 @@ import { Controller, Get, Post, Body, Query, UseGuards, Req } from '@nestjs/comm
 import { Throttle } from '@nestjs/throttler';
 import { AnalyticsService } from './analytics.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../../common/guards/roles.guard';
 import { SuperAdminGuard } from '../../common/guards/super-admin.guard';
 import { CurrentTenant } from '../../common/decorators/current-tenant.decorator';
 import { Public } from '../../common/decorators/public.decorator';
-import { Tenant } from '@prisma/client';
+import { Roles } from '../../common/decorators/roles.decorator';
+import { Tenant, UserRole } from '@prisma/client';
 
 @Controller('analytics')
 export class AnalyticsController {
@@ -25,7 +27,8 @@ export class AnalyticsController {
 
   // ─── MERCHANT: FUNNEL ────────────────────────────────────────────────────
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
   @Get('funnel')
   getMerchantFunnel(
     @CurrentTenant() tenant: Tenant,
@@ -37,7 +40,8 @@ export class AnalyticsController {
     );
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
   @Get('funnel/daily')
   getMerchantFunnelHistory(
     @CurrentTenant() tenant: Tenant,
@@ -49,7 +53,8 @@ export class AnalyticsController {
     );
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
   @Get('sources')
   getMerchantSources(
     @CurrentTenant() tenant: Tenant,
@@ -59,6 +64,26 @@ export class AnalyticsController {
       tenant.id,
       days ? parseInt(days, 10) : 30,
     );
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
+  @Get('shipping')
+  getMerchantShippingStats(
+    @CurrentTenant() tenant: Tenant,
+    @Query('days') days?: string,
+  ) {
+    return this.analyticsService.getMerchantShippingStats(
+      tenant.id,
+      days ? parseInt(days, 10) : 30,
+    );
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.OWNER)
+  @Get('commission-info')
+  getCommissionInfo(@CurrentTenant() tenant: Tenant) {
+    return this.analyticsService.getCommissionInfo(tenant.id, tenant.plan);
   }
 
   // ─── ADMIN: ANALYTICS ────────────────────────────────────────────────────

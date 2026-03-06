@@ -10,9 +10,10 @@ import { CustomersModule } from '../customers/customers.module';
 import { WalletModule } from '../wallet/wallet.module';
 import { TelegramModule } from '../telegram/telegram.module';
 import { MetaModule } from '../meta/meta.module';
+import { LoyaltyModule } from '../loyalty/loyalty.module';
 
 @Module({
-  imports: [PrismaModule, CouponsModule, ShippingModule, InvoicesModule, InventoryModule, CustomersModule, WalletModule, TelegramModule, MetaModule],
+  imports: [PrismaModule, CouponsModule, ShippingModule, InvoicesModule, InventoryModule, CustomersModule, WalletModule, TelegramModule, MetaModule, LoyaltyModule],
   controllers: [OrdersController],
   providers: [OrdersService],
 })

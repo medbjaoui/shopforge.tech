@@ -1,12 +1,17 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { Prisma } from '@prisma/client';
+import { Prisma, PlanType } from '@prisma/client';
+import { getHybridCommissionConfig, calculateHybridCommission } from '../../common/billing/plan-limits';
+import { PlatformConfigService } from '../platform-config/platform-config.service';
 
 @Injectable()
 export class AnalyticsService {
   private readonly logger = new Logger(AnalyticsService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private platformConfig: PlatformConfigService,
+  ) {}
 
   // ─── INGEST EVENTS (batch) ────────────────────────────────────────────────
 
@@ -480,6 +485,122 @@ export class AnalyticsService {
       where: { tenantId, date: { gte: since } },
       orderBy: { date: 'asc' },
     });
+  }
+
+  // ─── MERCHANT: SHIPPING & DELIVERY STATS ──────────────────────────────────
+
+  async getMerchantShippingStats(tenantId: string, days = 30) {
+    const since = new Date();
+    since.setDate(since.getDate() - days);
+    since.setHours(0, 0, 0, 0);
+
+    // Colis livrés (commandes avec status DELIVERED)
+    const deliveredOrders = await this.prisma.order.count({
+      where: {
+        tenantId,
+        status: 'DELIVERED',
+        createdAt: { gte: since },
+      },
+    });
+
+    // Total colis livrés (all time)
+    const totalDelivered = await this.prisma.order.count({
+      where: {
+        tenantId,
+        status: 'DELIVERED',
+      },
+    });
+
+    // Mes contributions (commissions payées)
+    const commissionsAgg = await this.prisma.commissionRecord.aggregate({
+      where: { tenantId },
+      _sum: { commissionAmount: true },
+      _count: { id: true },
+    });
+
+    // Commissions ce mois
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+
+    const monthCommissions = await this.prisma.commissionRecord.aggregate({
+      where: {
+        tenantId,
+        createdAt: { gte: startOfMonth },
+      },
+      _sum: { commissionAmount: true },
+    });
+
+    // Solde transporteur (optionnel - peut être calculé depuis shipments)
+    const shipmentStats = await this.prisma.shipment.groupBy({
+      by: ['status'],
+      where: { tenantId },
+      _count: { id: true },
+    });
+
+    // Vérifier si le tenant est dans son premier mois gratuit
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: {
+        firstMonthCommissionFree: true,
+        firstMonthEndsAt: true,
+        createdAt: true,
+        plan: true,
+      },
+    });
+
+    let isInFirstMonth = false;
+    let daysLeftInFirstMonth = 0;
+
+    if (tenant?.firstMonthCommissionFree && tenant.firstMonthEndsAt) {
+      const now = new Date();
+      isInFirstMonth = now < tenant.firstMonthEndsAt;
+      if (isInFirstMonth) {
+        daysLeftInFirstMonth = Math.ceil((tenant.firstMonthEndsAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+      }
+    }
+
+    return {
+      deliveredOrdersPeriod: deliveredOrders,
+      totalDeliveredAllTime: totalDelivered,
+      totalCommissionsPaid: Number(commissionsAgg._sum.commissionAmount ?? 0),
+      commissionsCount: commissionsAgg._count.id,
+      monthCommissions: Number(monthCommissions._sum.commissionAmount ?? 0),
+      shipmentStatusBreakdown: shipmentStats.map((s) => ({
+        status: s.status,
+        count: s._count.id,
+      })),
+      isInFirstMonthFree: isInFirstMonth,
+      daysLeftInFirstMonth,
+      plan: tenant?.plan ?? 'FREE',
+    };
+  }
+
+  /** Get commission info for merchant (hybrid model: fixed + percentage) */
+  async getCommissionInfo(tenantId: string, plan: PlanType) {
+    const config = getHybridCommissionConfig(plan, this.platformConfig);
+
+    // Exemples de calcul
+    const examples = [50, 100, 200, 500, 1000].map((amount) => ({
+      orderAmount: amount,
+      commission: calculateHybridCommission(amount, plan, this.platformConfig),
+      isFixedUsed: calculateHybridCommission(amount, plan, this.platformConfig) === config.fixedFee,
+    }));
+
+    // Calculer le seuil de break-even (où % > fixe)
+    const breakEvenPoint = Math.ceil((config.fixedFee / config.percentage) * 100);
+
+    return {
+      plan,
+      fixedFee: config.fixedFee,
+      percentage: config.percentage,
+      formula: `MAX(${config.fixedFee} TND, Commande × ${config.percentage}%)`,
+      breakEvenPoint, // Point où le pourcentage dépasse le fixe
+      examples,
+      explanation: {
+        fr: `Vous payez le maximum entre ${config.fixedFee} TND (fixe) et ${config.percentage}% de la commande. Sur les petites commandes (< ${breakEvenPoint} TND), vous payez ${config.fixedFee} TND fixe. Sur les grandes commandes, vous payez ${config.percentage}%.`,
+      },
+    };
   }
 
   // ─── CLEANUP OLD EVENTS ──────────────────────────────────────────────────

@@ -80,7 +80,7 @@ export class AdminService implements OnModuleInit {
       ? { createdAt: { gte: new Date(Date.now() - days * 24 * 60 * 60 * 1000) } }
       : {};
 
-    const [totalTenants, activeTenants, totalProducts, totalOrders, revenueAgg, planBreakdown] =
+    const [totalTenants, activeTenants, totalProducts, totalOrders, revenueAgg, planBreakdown, platformRevenueAgg] =
       await Promise.all([
         this.prisma.tenant.count(),
         this.prisma.tenant.count({ where: { isActive: true } }),
@@ -88,6 +88,7 @@ export class AdminService implements OnModuleInit {
         this.prisma.order.count({ where: dateFilter }),
         this.prisma.order.aggregate({ where: dateFilter, _sum: { totalAmount: true } }),
         this.prisma.tenant.groupBy({ by: ['plan'], _count: true }),
+        this.prisma.platformRevenue.aggregate({ where: dateFilter, _sum: { amount: true } }),
       ]);
 
     // Top 5 boutiques par CA
@@ -125,7 +126,8 @@ export class AdminService implements OnModuleInit {
       activeTenants,
       totalProducts,
       totalOrders,
-      totalRevenue: revenueAgg._sum.totalAmount ?? 0,
+      totalRevenue: revenueAgg._sum.totalAmount ?? 0, // Merchant revenue (all orders)
+      platformRevenue: platformRevenueAgg._sum.amount ?? 0, // Platform revenue (commissions + subscriptions)
       planBreakdown: planBreakdown.reduce(
         (acc, r) => ({ ...acc, [r.plan]: r._count }),
         {} as Record<string, number>,

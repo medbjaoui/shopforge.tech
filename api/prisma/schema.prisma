@@ -87,10 +87,14 @@ model Tenant {
   activatedAt           DateTime? // Date 1er produit + 1ere commande recue
   churnedAt             DateTime? // Date detectee inactive
   lastActivityAt        DateTime? // Dernier login OU action API
+  // Commissions - 1er mois gratuit
+  firstMonthCommissionFree Boolean  @default(true) // 50 commandes gratuites le 1er mois
+  firstMonthEndsAt         DateTime? // Calculé: createdAt + 30 jours
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 
   users            User[]
+  invitations      TenantInvitation[]
   products         Product[]
   categories       Category[]
   orders           Order[]
@@ -103,11 +107,13 @@ model Tenant {
   aiUsage          AiUsage[]
   wallet           TenantWallet?
   commissions      CommissionRecord[]
+  platformRevenues PlatformRevenue[]
   creditCodeUsages CreditCodeUsage[]
   analyticsEvents  AnalyticsEvent[]
   dailyFunnels     DailyFunnel[]
   tenantMetrics    TenantMetricsDaily[]
   auditLogs        AuditLog[]
+  loyaltyProgram   LoyaltyProgram?
 
   @@map("tenants")
 }
@@ -141,9 +147,29 @@ model User {
   @@map("users")
 }
 
+model TenantInvitation {
+  id        String   @id @default(cuid())
+  email     String
+  role      UserRole
+  token     String   @unique
+  tenantId  String
+  invitedBy String   // User ID who sent invitation
+  expiresAt DateTime
+  acceptedAt DateTime?
+  createdAt DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([email])
+  @@index([token])
+  @@map("tenant_invitations")
+}
+
 enum UserRole {
   OWNER
   ADMIN
+  MANAGER
   STAFF
 }
 
@@ -285,11 +311,12 @@ model Order {
 
   customerId      String?
 
-  tenant   Tenant      @relation(fields: [tenantId], references: [id])
-  customer Customer?   @relation(fields: [customerId], references: [id], onDelete: SetNull)
-  items    OrderItem[]
-  shipment Shipment?
-  invoice  Invoice?
+  tenant          Tenant           @relation(fields: [tenantId], references: [id])
+  customer        Customer?        @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  items           OrderItem[]
+  shipment        Shipment?
+  invoice         Invoice?
+  platformRevenue PlatformRevenue?
 
   @@unique([orderNumber, tenantId])
   @@index([tenantId])
@@ -624,6 +651,7 @@ model Customer {
   orders    Order[]
   addresses CustomerAddress[]
   tags      CustomerTagLink[]
+  loyalty   CustomerLoyalty?
 
   @@unique([phone, tenantId])
   @@index([tenantId])
@@ -721,6 +749,11 @@ enum CommissionStatus {
   REFUNDED    // Commission remboursée (commande retournée)
 }
 
+enum PlatformRevenueType {
+  COMMISSION   // Commission sur commande livrée (3%, 1.5%, 0.5%)
+  SUBSCRIPTION // Prix plan mensuel (FREE: 0, STARTER: 29, PRO: 79)
+}
+
 model TenantWallet {
   id              String   @id @default(cuid())
   tenantId        String   @unique
@@ -774,6 +807,34 @@ model CommissionRecord {
   @@index([tenantId])
   @@index([tenantId, createdAt])
   @@map("commission_records")
+}
+
+// ─── PLATFORM REVENUE (CA Plateforme) ───────────────────────────────────────
+
+model PlatformRevenue {
+  id        String              @id @default(cuid())
+  type      PlatformRevenueType // COMMISSION | SUBSCRIPTION
+  tenantId  String
+  amount    Decimal             @db.Decimal(10, 3)
+
+  // Pour type = COMMISSION
+  orderId   String?             @unique
+  order     Order?              @relation(fields: [orderId], references: [id])
+
+  // Pour type = SUBSCRIPTION
+  period    String?             // Format: 'YYYY-MM' (ex: '2026-03')
+  plan      PlanType?           // FREE, STARTER, PRO
+
+  note      String?
+  createdAt DateTime            @default(now())
+
+  tenant    Tenant              @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
+  @@index([type])
+  @@index([createdAt])
+  @@index([period])
+  @@map("platform_revenue")
 }
 
 // ─── ANALYTICS ──────────────────────────────────────────────────────────────
@@ -897,6 +958,85 @@ model CreditCodeUsage {
   @@unique([creditCodeId, tenantId])
   @@index([tenantId])
   @@map("credit_code_usages")
+}
+
+// ─── PROGRAMME DE FIDÉLITÉ ────────────────────────────────────────────────────
+
+enum LoyaltyTier {
+  BRONZE
+  SILVER
+  GOLD
+  PLATINUM
+}
+
+model LoyaltyProgram {
+  id                String   @id @default(cuid())
+  tenantId          String   @unique
+  isEnabled         Boolean  @default(false)
+  pointsPerDinar    Decimal  @db.Decimal(5, 2) @default(1.0)    // 1 TND = X points
+  rewardThreshold   Int      @default(100)                      // Points requis pour récompense
+  rewardValue       Decimal  @db.Decimal(10, 2) @default(10.0) // Valeur récompense (TND)
+  welcomePoints     Int      @default(0)                        // Points offerts à l'inscription
+  reviewPoints      Int      @default(10)                       // Points par avis produit
+  // Seuils de tiers (basés sur totalSpent du client)
+  silverThreshold   Decimal  @db.Decimal(10, 2) @default(200.0) // 200 TND
+  goldThreshold     Decimal  @db.Decimal(10, 2) @default(500.0) // 500 TND
+  platinumThreshold Decimal  @db.Decimal(10, 2) @default(1000.0) // 1000 TND
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  tenant    Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customers CustomerLoyalty[]
+  history   LoyaltyHistory[]
+
+  @@map("loyalty_programs")
+}
+
+model CustomerLoyalty {
+  id             String      @id @default(cuid())
+  customerId     String      @unique
+  programId      String
+  points         Int         @default(0)
+  totalEarned    Int         @default(0)
+  totalRedeemed  Int         @default(0)
+  tier           LoyaltyTier @default(BRONZE)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  customer Customer       @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  program  LoyaltyProgram @relation(fields: [programId], references: [id], onDelete: Cascade)
+
+  @@index([programId])
+  @@map("customer_loyalty")
+}
+
+enum LoyaltyActionType {
+  EARNED_PURCHASE   // Gagné via achat
+  EARNED_WELCOME    // Bonus bienvenue
+  EARNED_REVIEW     // Gagné via avis produit
+  EARNED_REFERRAL   // Gagné via parrainage
+  REDEEMED_DISCOUNT // Utilisé pour réduction
+  EXPIRED           // Points expirés
+  ADJUSTED          // Ajustement manuel
+}
+
+model LoyaltyHistory {
+  id          String            @id @default(cuid())
+  customerId  String
+  programId   String
+  type        LoyaltyActionType
+  points      Int               // Signé : positif = gagné, négatif = dépensé
+  orderId     String?
+  description String?
+  createdAt   DateTime          @default(now())
+
+  program  LoyaltyProgram @relation(fields: [programId], references: [id], onDelete: Cascade)
+
+  @@index([customerId])
+  @@index([programId])
+  @@index([orderId])
+  @@index([createdAt])
+  @@map("loyalty_history")
 }
 
 // ─── PARRAINAGE ───────────────────────────────────────────────────────────────

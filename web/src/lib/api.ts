@@ -59,3 +59,5 @@ export function clearAuth() {
   localStorage.removeItem('storeSlug');
   localStorage.removeItem('user');
 }
+
+export default api;

@@ -10,12 +10,16 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../../common/guards/roles.guard';
+import { Roles } from '../../common/decorators/roles.decorator';
+import { UserRole } from '@prisma/client';
 
 const UPLOADS_DIR = process.env.UPLOADS_DIR || '/app/uploads';
 
 @Controller('uploads')
-@UseGuards(JwtAuthGuard)
 export class UploadsController {
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.STAFF)
   @Post()
   @UseInterceptors(
     FileInterceptor('file', {

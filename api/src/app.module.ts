@@ -27,6 +27,10 @@ import { TelegramModule } from './modules/telegram/telegram.module';
 import { CloudflareModule } from './modules/cloudflare/cloudflare.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { PaymentsModule } from './modules/payments/payments.module';
+import { PlatformRevenueModule } from './modules/platform-revenue/platform-revenue.module';
+import { LoyaltyModule } from './modules/loyalty/loyalty.module';
+import { AuditLogsModule } from './modules/audit-logs/audit-logs.module';
+import { TeamModule } from './modules/team/team.module';
 import { TenantMiddleware } from './common/middleware/tenant.middleware';
 
 @Module({
@@ -67,6 +71,10 @@ import { TenantMiddleware } from './common/middleware/tenant.middleware';
     CloudflareModule,
     AnalyticsModule,
     PaymentsModule,
+    PlatformRevenueModule,
+    LoyaltyModule,
+    AuditLogsModule,
+    TeamModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

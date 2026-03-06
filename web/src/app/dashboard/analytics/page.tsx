@@ -28,6 +28,18 @@ interface TrafficSource {
   percent: number;
 }
 
+interface ShippingStats {
+  deliveredOrdersPeriod: number;
+  totalDeliveredAllTime: number;
+  totalCommissionsPaid: number;
+  commissionsCount: number;
+  monthCommissions: number;
+  shipmentStatusBreakdown: Array<{ status: string; count: number }>;
+  isInFirstMonthFree: boolean;
+  daysLeftInFirstMonth: number;
+  plan: string;
+}
+
 const STATUS_LABELS: Record<string, string> = {
   PENDING: 'En attente', CONFIRMED: 'Confirmée', PROCESSING: 'En préparation',
   SHIPPED: 'Expédiée', DELIVERED: 'Livrée', CANCELLED: 'Annulée',
@@ -49,6 +61,7 @@ export default function AnalyticsPage() {
   const [data, setData] = useState<Analytics | null>(null);
   const [funnel, setFunnel] = useState<Funnel | null>(null);
   const [sources, setSources] = useState<TrafficSource[]>([]);
+  const [shippingStats, setShippingStats] = useState<ShippingStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [days, setDays] = useState(30);
 
@@ -76,10 +89,12 @@ export default function AnalyticsPage() {
       api.get(`/orders/analytics?days=${days}`),
       api.get(`/analytics/funnel?days=${days}`).catch(() => ({ data: null })),
       api.get(`/analytics/sources?days=${days}`).catch(() => ({ data: [] })),
-    ]).then(([analyticsRes, funnelRes, sourcesRes]) => {
+      api.get(`/analytics/shipping?days=${days}`).catch(() => ({ data: null })),
+    ]).then(([analyticsRes, funnelRes, sourcesRes, shippingRes]) => {
       setData(analyticsRes.data);
       setFunnel(funnelRes.data);
       setSources(sourcesRes.data ?? []);
+      setShippingStats(shippingRes.data);
     }).catch(console.error)
       .finally(() => setLoading(false));
   }, [days]);
@@ -293,6 +308,50 @@ export default function AnalyticsPage() {
           )}
         </div>
       </div>
+
+      {/* Livraisons & Commissions */}
+      {shippingStats && (
+        <div className="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 rounded-xl p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-semibold text-gray-900 flex items-center gap-2">
+              📦 Livraisons & Commissions
+            </h2>
+            {shippingStats.isInFirstMonthFree && (
+              <span className="text-xs font-medium bg-green-600 text-white px-3 py-1 rounded-full">
+                🎁 {shippingStats.daysLeftInFirstMonth}j gratuits restants
+              </span>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+            <div className="bg-white rounded-lg p-4 border border-green-100">
+              <p className="text-xs text-gray-500 uppercase mb-1">Colis livrés ({periodLabel})</p>
+              <p className="text-2xl font-bold text-green-600">{shippingStats.deliveredOrdersPeriod}</p>
+              <p className="text-xs text-gray-400 mt-1">Total: {shippingStats.totalDeliveredAllTime}</p>
+            </div>
+
+            <div className="bg-white rounded-lg p-4 border border-orange-100">
+              <p className="text-xs text-gray-500 uppercase mb-1">Mes contributions</p>
+              <p className="text-2xl font-bold text-orange-600">{shippingStats.totalCommissionsPaid.toFixed(3)} TND</p>
+              <p className="text-xs text-gray-400 mt-1">Ce mois: {shippingStats.monthCommissions.toFixed(3)} TND</p>
+            </div>
+
+            <div className="bg-white rounded-lg p-4 border border-blue-100">
+              <p className="text-xs text-gray-500 uppercase mb-1">Plan actuel</p>
+              <p className="text-2xl font-bold text-blue-600">{shippingStats.plan}</p>
+              <p className="text-xs text-gray-400 mt-1">{shippingStats.commissionsCount} commissions</p>
+            </div>
+          </div>
+
+          {shippingStats.isInFirstMonthFree && (
+            <div className="bg-white rounded-lg p-3 border border-green-200">
+              <p className="text-sm text-green-700">
+                ✨ <strong>Profitez de votre premier mois gratuit !</strong> Plus que {shippingStats.daysLeftInFirstMonth} jour{shippingStats.daysLeftInFirstMonth > 1 ? 's' : ''} sans commission sur vos livraisons.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Funnel + Sources */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

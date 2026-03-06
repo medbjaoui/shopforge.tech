@@ -13,8 +13,10 @@ import {
 import { Response, Request } from 'express';
 import { PaymentsService } from './payments.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../../common/guards/roles.guard';
+import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentTenant } from '../../common/decorators/current-tenant.decorator';
-import { Tenant } from '@prisma/client';
+import { Tenant, UserRole } from '@prisma/client';
 import { Public } from '../../common/decorators/public.decorator';
 
 @Controller('payments')
@@ -23,7 +25,8 @@ export class PaymentsController {
 
   // ─── Initiate payment (authenticated — called after order creation) ────────
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
   @Post('initiate/clictopay')
   async initiateClicToPay(
     @Body() body: { orderId: string; returnBaseUrl: string },
@@ -36,7 +39,8 @@ export class PaymentsController {
     });
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
   @Post('initiate/floussi')
   async initiateFloussi(
     @Body() body: { orderId: string; returnBaseUrl: string },

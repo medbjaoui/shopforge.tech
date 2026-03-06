@@ -11,10 +11,12 @@ import {
 import { Throttle } from '@nestjs/throttler';
 import { AiService } from './ai.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../../common/guards/roles.guard';
+import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentTenant } from '../../common/decorators/current-tenant.decorator';
 import { Public } from '../../common/decorators/public.decorator';
 import { PrismaService } from '../../prisma/prisma.service';
-import { Tenant, AiFeature } from '@prisma/client';
+import { Tenant, AiFeature, UserRole } from '@prisma/client';
 
 @Controller('ai')
 export class AiController {
@@ -25,7 +27,8 @@ export class AiController {
 
   // ── Feature 1: Product Description Generator ────────────────────────────
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.STAFF)
   @Post('product-description')
   async generateProductDescription(
     @Body()
@@ -169,7 +172,8 @@ Règles :
 
   // ── Feature 3: Review Sentiment Summary ─────────────────────────────────
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.STAFF)
   @Post('review-summary')
   async summarizeReviews(
     @Body() body: { productId: string },
@@ -228,7 +232,8 @@ Réponds en français. Sois factuel et concis. N'utilise pas de markdown (**, ##
 
   // ── Feature 4: Dashboard Insights ───────────────────────────────────────
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.STAFF)
   @Post('dashboard-insights')
   async getDashboardInsights(@CurrentTenant() tenant: Tenant) {
     const now = new Date();
@@ -321,7 +326,8 @@ Adapte tes conseils au marché tunisien.`,
 
   // ── Feature 5: Order Response Generator ─────────────────────────────────
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.STAFF)
   @Post('order-response')
   async generateOrderResponse(
     @Body()
@@ -363,7 +369,8 @@ Le message doit être prêt à copier pour WhatsApp ou SMS.
 
   // ── Usage endpoint (for dashboard) ──────────────────────────────────────
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
   @Get('usage')
   async getUsage(@CurrentTenant() tenant: Tenant) {
     return this.aiService.getUsageBreakdown(tenant.id);

@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useCustomer } from '@/contexts/CustomerContext';
+import AddressManager from '@/components/storefront/AddressManager';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
@@ -34,7 +35,12 @@ export default function AccountPage({ params }: { params: { slug: string } }) {
   const router = useRouter();
   const [orders, setOrders] = useState<Order[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<'orders' | 'profile'>('orders');
+  const [activeTab, setActiveTab] = useState<'orders' | 'profile' | 'addresses'>('orders');
+  const [editingProfile, setEditingProfile] = useState(false);
+  const [profileForm, setProfileForm] = useState({ firstName: '', lastName: '', email: '' });
+  const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '' });
+  const [showPasswordForm, setShowPasswordForm] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   // Redirect if not logged in
   useEffect(() => {
@@ -42,6 +48,17 @@ export default function AccountPage({ params }: { params: { slug: string } }) {
       router.replace(`/account/login`);
     }
   }, [isLoading, isLoggedIn, params.slug, router]);
+
+  // Initialize profile form when customer loads
+  useEffect(() => {
+    if (customer) {
+      setProfileForm({
+        firstName: customer.firstName || '',
+        lastName: customer.lastName || '',
+        email: customer.email || '',
+      });
+    }
+  }, [customer]);
 
   // Load orders
   useEffect(() => {
@@ -64,6 +81,54 @@ export default function AccountPage({ params }: { params: { slug: string } }) {
   const handleLogout = () => {
     logout(params.slug);
     router.push(`/`);
+  };
+
+  const handleSaveProfile = async () => {
+    if (!token) return;
+    setSaving(true);
+    try {
+      const res = await fetch(`${API_URL}/store/auth/profile`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+          'X-Tenant-Slug': params.slug,
+        },
+        body: JSON.stringify(profileForm),
+      });
+      if (!res.ok) throw new Error('Erreur lors de la mise à jour');
+      alert('Profil mis à jour avec succès');
+      setEditingProfile(false);
+      window.location.reload(); // Refresh to get updated customer data
+    } catch (err) {
+      alert('Erreur lors de la mise à jour du profil');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleChangePassword = async () => {
+    if (!token || !passwordForm.currentPassword || !passwordForm.newPassword) return;
+    setSaving(true);
+    try {
+      const res = await fetch(`${API_URL}/store/auth/password`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+          'X-Tenant-Slug': params.slug,
+        },
+        body: JSON.stringify(passwordForm),
+      });
+      if (!res.ok) throw new Error('Erreur lors du changement de mot de passe');
+      alert('Mot de passe modifié avec succès');
+      setPasswordForm({ currentPassword: '', newPassword: '' });
+      setShowPasswordForm(false);
+    } catch (err) {
+      alert('Mot de passe actuel incorrect');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -106,7 +171,7 @@ export default function AccountPage({ params }: { params: { slug: string } }) {
 
       {/* Tabs */}
       <div className="flex gap-1 bg-gray-100 rounded-xl p-1 mb-6">
-        {(['orders', 'profile'] as const).map(tab => (
+        {(['orders', 'profile', 'addresses'] as const).map(tab => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -114,7 +179,7 @@ export default function AccountPage({ params }: { params: { slug: string } }) {
               activeTab === tab ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
             }`}
           >
-            {tab === 'orders' ? 'Mes commandes' : 'Mon profil'}
+            {tab === 'orders' ? 'Mes commandes' : tab === 'profile' ? 'Mon profil' : 'Mes adresses'}
           </button>
         ))}
       </div>
@@ -181,26 +246,160 @@ export default function AccountPage({ params }: { params: { slug: string } }) {
 
       {/* Profile tab */}
       {activeTab === 'profile' && (
-        <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">Prénom</p>
-              <p className="font-medium text-gray-900">{customer.firstName}</p>
+        <div className="space-y-4">
+          <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold text-gray-900">Informations personnelles</h3>
+              {!editingProfile && (
+                <button
+                  onClick={() => setEditingProfile(true)}
+                  className="text-xs text-indigo-600 hover:text-indigo-500 font-medium"
+                >
+                  Modifier
+                </button>
+              )}
             </div>
-            <div>
-              <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">Nom</p>
-              <p className="font-medium text-gray-900">{customer.lastName}</p>
-            </div>
+
+            {editingProfile ? (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs text-gray-400 uppercase tracking-wider mb-1 block">Prénom</label>
+                    <input
+                      type="text"
+                      value={profileForm.firstName}
+                      onChange={(e) => setProfileForm({ ...profileForm, firstName: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-400 uppercase tracking-wider mb-1 block">Nom</label>
+                    <input
+                      type="text"
+                      value={profileForm.lastName}
+                      onChange={(e) => setProfileForm({ ...profileForm, lastName: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs text-gray-400 uppercase tracking-wider mb-1 block">Email</label>
+                  <input
+                    type="email"
+                    value={profileForm.email}
+                    onChange={(e) => setProfileForm({ ...profileForm, email: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-400 uppercase tracking-wider mb-1 block">Téléphone</label>
+                  <p className="text-sm text-gray-500 italic">{customer.phone} (non modifiable)</p>
+                </div>
+                <div className="flex gap-2 pt-2">
+                  <button
+                    onClick={handleSaveProfile}
+                    disabled={saving}
+                    className="px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-500 disabled:opacity-50"
+                  >
+                    {saving ? 'Enregistrement...' : 'Enregistrer'}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setEditingProfile(false);
+                      setProfileForm({
+                        firstName: customer.firstName || '',
+                        lastName: customer.lastName || '',
+                        email: customer.email || '',
+                      });
+                    }}
+                    className="px-4 py-2 border border-gray-200 text-gray-700 text-sm font-semibold rounded-lg hover:bg-gray-50"
+                  >
+                    Annuler
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">Prénom</p>
+                    <p className="font-medium text-gray-900">{customer.firstName}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">Nom</p>
+                    <p className="font-medium text-gray-900">{customer.lastName}</p>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">Email</p>
+                  <p className="font-medium text-gray-900">{customer.email ?? '—'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">Téléphone</p>
+                  <p className="font-medium text-gray-900">{customer.phone}</p>
+                </div>
+              </div>
+            )}
           </div>
-          <div>
-            <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">Email</p>
-            <p className="font-medium text-gray-900">{customer.email ?? '—'}</p>
-          </div>
-          <div>
-            <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">Téléphone</p>
-            <p className="font-medium text-gray-900">{customer.phone}</p>
+
+          {/* Change password section */}
+          <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
+            <h3 className="font-semibold text-gray-900 mb-4">Sécurité</h3>
+            {!showPasswordForm ? (
+              <button
+                onClick={() => setShowPasswordForm(true)}
+                className="text-sm text-indigo-600 hover:text-indigo-500 font-medium"
+              >
+                Changer mon mot de passe
+              </button>
+            ) : (
+              <div className="space-y-4">
+                <div>
+                  <label className="text-xs text-gray-400 uppercase tracking-wider mb-1 block">Mot de passe actuel</label>
+                  <input
+                    type="password"
+                    value={passwordForm.currentPassword}
+                    onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-400 uppercase tracking-wider mb-1 block">Nouveau mot de passe</label>
+                  <input
+                    type="password"
+                    value={passwordForm.newPassword}
+                    onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    placeholder="Minimum 6 caractères"
+                  />
+                </div>
+                <div className="flex gap-2 pt-2">
+                  <button
+                    onClick={handleChangePassword}
+                    disabled={saving || !passwordForm.currentPassword || !passwordForm.newPassword}
+                    className="px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-500 disabled:opacity-50"
+                  >
+                    {saving ? 'Modification...' : 'Modifier'}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowPasswordForm(false);
+                      setPasswordForm({ currentPassword: '', newPassword: '' });
+                    }}
+                    className="px-4 py-2 border border-gray-200 text-gray-700 text-sm font-semibold rounded-lg hover:bg-gray-50"
+                  >
+                    Annuler
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
+      )}
+
+      {/* Addresses tab */}
+      {activeTab === 'addresses' && token && (
+        <AddressManager token={token} tenantSlug={params.slug} />
       )}
     </div>
   );

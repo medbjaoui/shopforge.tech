@@ -4,14 +4,17 @@ import {
 } from '@nestjs/common';
 import { InvoicesService } from './invoices.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../../common/guards/roles.guard';
 import { CurrentTenant } from '../../common/decorators/current-tenant.decorator';
-import { Tenant } from '@prisma/client';
+import { Roles } from '../../common/decorators/roles.decorator';
+import { Tenant, UserRole } from '@prisma/client';
 
 @Controller('invoices')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class InvoicesController {
   constructor(private invoicesService: InvoicesService) {}
 
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
   @Get()
   findAll(
     @CurrentTenant() tenant: Tenant,
@@ -22,11 +25,13 @@ export class InvoicesController {
     return this.invoicesService.getAllInvoices(page, limit, tenant.id, search);
   }
 
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
   @Get('stats')
   getStats(@CurrentTenant() tenant: Tenant) {
     return this.invoicesService.getTenantInvoiceStats(tenant.id);
   }
 
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
   @Get(':id')
   findOne(@Param('id') id: string, @CurrentTenant() tenant: Tenant) {
     return this.invoicesService.getInvoiceByIdForTenant(id, tenant.id);

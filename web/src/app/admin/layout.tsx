@@ -28,6 +28,7 @@ const NAV_GROUPS: NavGroup[] = [
     label: 'Analytique',
     items: [
       { href: '/admin', label: 'Dashboard', icon: <DashboardIcon size={18} /> },
+      { href: '/admin/revenue', label: 'Revenus CA', icon: <WalletIcon size={18} /> },
       { href: '/admin/performance', label: 'Performance', icon: <ChartIcon size={18} /> },
       { href: '/admin/billing', label: 'Billing / MRR', icon: <TrendingIcon size={18} /> },
       { href: '/admin/analytics', label: 'Analytics SaaS', icon: <ChartIcon size={18} /> },
@@ -47,6 +48,7 @@ const NAV_GROUPS: NavGroup[] = [
     label: 'Système',
     items: [
       { href: '/admin/ai', label: 'Intelligence IA', icon: <BrainIcon size={18} /> },
+      { href: '/admin/audit-logs', label: 'Audit Logs', icon: <ReceiptIcon size={18} /> },
       { href: '/admin/settings', label: 'Paramètres', icon: <SettingsIcon size={18} /> },
     ],
   },

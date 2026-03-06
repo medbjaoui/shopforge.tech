@@ -8,10 +8,15 @@ export interface PlanLimits {
   label: string;
 }
 
+export interface CommissionConfig {
+  fixedFee: number;    // Montant fixe minimum (TND)
+  percentage: number;  // Pourcentage (%)
+}
+
 /** Static defaults (used as fallback when config service not available) */
 export const PLAN_LIMITS: Record<PlanType, PlanLimits> = {
   FREE: {
-    maxProducts: 10,
+    maxProducts: 5,
     maxOrdersPerMonth: 50,
     priceMonthly: 0,
     label: 'Gratuit',
@@ -36,7 +41,7 @@ export function getDynamicPlanLimits(
 ): Record<PlanType, PlanLimits> {
   return {
     FREE: {
-      maxProducts: config.getNumber('plan_free_max_products', 10),
+      maxProducts: config.getNumber('plan_free_max_products', 5),
       maxOrdersPerMonth: config.getNumber('plan_free_max_orders_month', 50),
       priceMonthly: config.getNumber('plan_free_price', 0),
       label: config.get('plan_free_label') ?? 'Gratuit',
@@ -68,4 +73,51 @@ export function getDynamicCommissionRate(plan: PlanType, config: PlatformConfigS
     case PlanType.PRO:     return config.getNumber('commission_pro_rate', 0.5) / 100;
     default:               return 0.03;
   }
+}
+
+/** Get hybrid commission config (fixed fee + percentage) for a plan */
+export function getHybridCommissionConfig(plan: PlanType, config: PlatformConfigService): CommissionConfig {
+  const planKey = plan.toLowerCase();
+  return {
+    fixedFee: config.getNumber(`commission.${planKey}.fixedFee`, getDefaultFixedFee(plan)),
+    percentage: config.getNumber(`commission.${planKey}.percentage`, getDefaultPercentage(plan)),
+  };
+}
+
+/** Static defaults for fixed fees */
+function getDefaultFixedFee(plan: PlanType): number {
+  switch (plan) {
+    case PlanType.FREE:    return 2.0;
+    case PlanType.STARTER: return 1.0;
+    case PlanType.PRO:     return 0.5;
+    default:               return 2.0;
+  }
+}
+
+/** Static defaults for percentages */
+function getDefaultPercentage(plan: PlanType): number {
+  switch (plan) {
+    case PlanType.FREE:    return 1.2;
+    case PlanType.STARTER: return 0.6;
+    case PlanType.PRO:     return 0.4;
+    default:               return 1.2;
+  }
+}
+
+/** Calculate hybrid commission: MAX(fixedFee, orderAmount × percentage) */
+export function calculateHybridCommission(
+  orderAmount: number,
+  plan: PlanType,
+  config: PlatformConfigService,
+): number {
+  const commissionConfig = getHybridCommissionConfig(plan, config);
+
+  const fixedFee = commissionConfig.fixedFee;
+  const percentageFee = orderAmount * (commissionConfig.percentage / 100);
+
+  // Retourner le maximum entre le fixe et le pourcentage
+  const commission = Math.max(fixedFee, percentageFee);
+
+  // Arrondir à 3 décimales
+  return Math.round(commission * 1000) / 1000;
 }

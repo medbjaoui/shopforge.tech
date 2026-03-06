@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import PageHeader from '@/components/dashboard/PageHeader';
 import LoadingSkeleton from '@/components/dashboard/LoadingSkeleton';
+import CommissionInfo from '@/components/dashboard/CommissionInfo';
 
 interface UsageBar {
   used: number;
@@ -113,6 +114,11 @@ export default function BillingPage() {
   return (
     <div className="max-w-4xl">
       <PageHeader title="Abonnement & Tarification" subtitle="Votre plan, commissions et utilisation" />
+
+      {/* Commission Info Card */}
+      <div className="mb-6">
+        <CommissionInfo />
+      </div>
 
       {/* Alerte solde bas */}
       {walletLow && (

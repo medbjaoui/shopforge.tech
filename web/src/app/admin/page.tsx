@@ -12,7 +12,7 @@ interface TopTenant {
 
 interface Stats {
   totalTenants: number; activeTenants: number; totalProducts: number;
-  totalOrders: number; totalRevenue: string | number;
+  totalOrders: number; totalRevenue: string | number; platformRevenue?: string | number;
   planBreakdown: Record<string, number>; topTenants: TopTenant[];
 }
 
@@ -138,7 +138,7 @@ export default function AdminDashboardPage() {
         </>
       ) : (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
             <KpiCard
               label="Boutiques"
               value={String(stats?.totalTenants ?? 0)}
@@ -160,12 +160,18 @@ export default function AdminDashboardPage() {
               href="/admin/performance"
             />
             <KpiCard
-              label={period > 0 ? `CA (${period}j)` : 'CA total'}
+              label="CA Marchands"
               value={formatTnd(Number(stats?.totalRevenue ?? 0))}
-              sub={period > 0 ? `derniers ${period} jours` : 'plateforme'}
+              sub={period > 0 ? `derniers ${period}j` : 'volume total'}
+              icon={<ChartIcon size={18} />}
+            />
+            <KpiCard
+              label="CA ShopForge"
+              value={formatTnd(Number(stats?.platformRevenue ?? 0))}
+              sub="commissions + abonnements"
               icon={<WalletIcon size={18} />}
               highlight
-              href="/admin/billing"
+              href="/admin/revenue"
             />
           </div>
 

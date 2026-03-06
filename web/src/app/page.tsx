@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { LogoIcon } from '@/components/Logo';
 import { Reveal } from '@/components/Reveal';
+import CommissionCalculator from '@/components/CommissionCalculator';
 
 // ─── Data ───────────────────────────────────────────────────────────────────
 
@@ -568,12 +569,20 @@ export default function HomePage() {
           </div>
           <Reveal>
             <div className="mt-10 bg-gray-50 rounded-2xl p-6 text-sm text-gray-600 border border-gray-200">
-              <p className="font-semibold text-gray-800 mb-2">Comment fonctionne la commission ?</p>
+              <p className="font-semibold text-gray-800 mb-2">💰 Nouveau modèle de commission hybride</p>
               <p>
-                La commission est prélevée uniquement sur les commandes COD <strong>livrées et confirmées</strong>.
+                La commission est <strong>le maximum entre un montant fixe et un pourcentage</strong> de la commande livrée.
+                Exemple: Plan FREE → MAX(2 TND fixe, 1.2% de la commande).
                 Elle est déduite automatiquement de votre wallet marchand.
-                Un solde minimum de 10 TND est requis — rechargeable à tout moment depuis le dashboard.
+                <strong className="block mt-2">🎁 Premier mois gratuit: 50 commandes sans commission!</strong>
               </p>
+            </div>
+          </Reveal>
+
+          {/* Commission Calculator */}
+          <Reveal>
+            <div className="mt-16">
+              <CommissionCalculator />
             </div>
           </Reveal>
         </div>

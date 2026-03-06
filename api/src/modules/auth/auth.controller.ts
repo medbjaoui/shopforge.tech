@@ -7,7 +7,10 @@ import { ChangePasswordDto } from './dto/change-password.dto';
 import { Public } from '../../common/decorators/public.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../../common/guards/roles.guard';
+import { Roles } from '../../common/decorators/roles.decorator';
 import { Request } from 'express';
+import { UserRole } from '@prisma/client';
 
 @Controller('auth')
 export class AuthController {
@@ -38,7 +41,8 @@ export class AuthController {
     return this.authService.refresh(refreshToken);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.STAFF)
   @Post('logout')
   @HttpCode(HttpStatus.OK)
   logout(@CurrentUser() user: any) {
@@ -46,7 +50,8 @@ export class AuthController {
   }
 
   // Changement de mot de passe (authentifié)
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.STAFF)
   @Post('change-password')
   @HttpCode(HttpStatus.OK)
   changePassword(@CurrentUser() user: any, @Body() dto: ChangePasswordDto) {
@@ -54,7 +59,8 @@ export class AuthController {
   }
 
   // Mise à jour du profil (prénom, nom)
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.STAFF)
   @Patch('profile')
   updateProfile(@CurrentUser() user: any, @Body() body: { firstName?: string; lastName?: string }) {
     return this.authService.updateProfile(user.id, body);

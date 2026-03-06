@@ -13,6 +13,7 @@ import { EmailService } from '../email/email.service';
 import { WalletService } from '../wallet/wallet.service';
 import { TelegramService } from '../telegram/telegram.service';
 import { MetaService } from '../meta/meta.service';
+import { LoyaltyService } from '../loyalty/loyalty.service';
 
 @Injectable()
 export class OrdersService {
@@ -28,6 +29,7 @@ export class OrdersService {
     private walletService: WalletService,
     private telegramService: TelegramService,
     private metaService: MetaService,
+    private loyaltyService: LoyaltyService,
   ) {}
 
   async findAll(tenantId: string, status?: string, search?: string, page = 1, limit = 20) {
@@ -459,6 +461,18 @@ export class OrdersService {
         this.walletService
           .deductCommission(tenantId, id, Number(order.totalAmount), order.tenant.plan)
           .catch((err) => console.warn(`[Wallet] Commission deduction failed for order ${id}:`, err?.message));
+
+        // Attribuer des points de fidélité au client
+        if (order.customerId) {
+          this.loyaltyService
+            .awardPointsForOrder(tenantId, id, Number(order.totalAmount), order.customerId)
+            .catch((err) => console.warn(`[Loyalty] Points award failed for order ${id}:`, err?.message));
+
+          // Points de bienvenue si 1ère commande
+          this.loyaltyService
+            .awardWelcomePoints(tenantId, order.customerId)
+            .catch((err) => console.warn(`[Loyalty] Welcome points failed for customer ${order.customerId}:`, err?.message));
+        }
       }
     }
 
